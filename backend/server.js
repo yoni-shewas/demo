@@ -8,6 +8,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import instructorRoutes from './src/routes/instructorRoutes.js';
 import studentRoutes from './src/routes/studentRoutes.js';
+import codeRoutes from './src/routes/codeRoutes.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -29,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/student', studentRoutes);
+app.use('/api/code', codeRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
