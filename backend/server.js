@@ -23,6 +23,11 @@ app.set('trust proxy', 1);
 app.use(helmetConfig);
 app.use(corsConfig);
 
+// Disable rate limiting in TEST_MODE
+if (process.env.TEST_MODE !== 'true') {
+  app.use(generalLimiter);
+}
+
 // Logging middleware
 app.use(morganMiddleware);
 
@@ -31,18 +36,26 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// General rate limiting for all requests
-app.use(generalLimiter);
-
 // Static file serving for uploads
 app.use('/uploads', express.static('uploads'));
 
 // Routes with specific rate limiters
-app.use('/api/auth', authLimiter, authRoutes);
+if (process.env.TEST_MODE === 'true') {
+  app.use('/api/auth', authRoutes);
+} else {
+  app.use('/api/auth', authLimiter, authRoutes);
+}
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/student', studentRoutes);
-app.use('/api/code', codeExecutionLimiter, codeRoutes);
+
+// Apply rate limiter only if NOT in TEST_MODE
+if (process.env.TEST_MODE === 'true') {
+  logger.warn('⚠️  TEST_MODE active: Rate limiting DISABLED for code execution');
+  app.use('/api/code', codeRoutes);
+} else {
+  app.use('/api/code', codeExecutionLimiter, codeRoutes);
+}
 
 app.get('/health', async (_req, res) => {
   try {

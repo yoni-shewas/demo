@@ -1,4 +1,8 @@
 import logger from '../config/logger.js';
+import * as simpleExecutor from './simpleExecutor.js';
+
+// Execution mode: 'simple' or 'judge0'
+const EXECUTION_MODE = process.env.CODE_EXECUTION_MODE || 'simple';
 
 // Judge0 API Configuration
 const JUDGE0_BASE_URL = process.env.JUDGE0_URL || 'http://localhost:2358';
@@ -190,7 +194,7 @@ async function pollForResult(token, maxAttempts = 30, interval = 1000) {
 }
 
 /**
- * Run code using Judge0 engine
+ * Run code using configured execution engine (simple or Judge0)
  * @param {string} language - Programming language
  * @param {string} sourceCode - Source code to execute
  * @param {string} input - Input for the program (optional)
@@ -220,52 +224,14 @@ export async function runCode(language, sourceCode, input = '', options = {}) {
       throw new Error('Input too long (max 10,000 characters)');
     }
 
-    const startTime = Date.now();
-    
-    // Submit code for execution
-    const token = await submitCode(
-      languageId,
-      sourceCode,
-      input,
-      options.timeLimit || 5,
-      options.memoryLimit || 128000
-    );
-
-    // Poll for result
-    const result = await pollForResult(token, options.maxAttempts || 30, options.pollInterval || 1000);
-    
-    const executionTime = Date.now() - startTime;
-
-    // Format response
-    const response = {
-      success: true,
-      status: {
-        id: result.status.id,
-        description: result.status.description,
-      },
-      stdout: result.stdout || '',
-      stderr: result.stderr || '',
-      compile_output: result.compile_output || '',
-      time: result.time, // CPU time in seconds
-      memory: result.memory, // Memory in KB
-      execution_time: executionTime, // Total time including network
-      language: language,
-      language_id: languageId,
-      token: token,
-    };
-
-    // Log execution details
-    logger.info('Code execution completed:', {
-      language,
-      status: result.status.description,
-      executionTime: `${executionTime}ms`,
-      cpuTime: `${result.time}s`,
-      memory: `${result.memory}KB`,
-      hasOutput: !!result.stdout,
-      hasErrors: !!result.stderr,
-    });
-
-    return response;
+    // Use simple executor or Judge0 based on configuration
+    if (EXECUTION_MODE === 'simple') {
+      logger.info(`Executing code using Simple Executor (${language})`);
+      return await runCodeSimple(language, languageId, sourceCode, input, options);
+    } else {
+      logger.info(`Executing code using Judge0 (${language})`);
+      return await runCodeJudge0(language, languageId, sourceCode, input, options);
+    }
   } catch (error) {
     logger.error('Code execution failed:', error);
     
@@ -287,6 +253,98 @@ export async function runCode(language, sourceCode, input = '', options = {}) {
       token: null,
     };
   }
+}
+
+/**
+ * Run code using Simple Executor (local execution)
+ */
+async function runCodeSimple(language, languageId, sourceCode, input, options) {
+  const startTime = Date.now();
+  
+  const result = await simpleExecutor.executeCode(languageId, sourceCode, input);
+  const executionTime = Date.now() - startTime;
+
+  // Format response to match Judge0 format
+  const response = {
+    success: result.success,
+    status: {
+      id: result.success ? 3 : -1,
+      description: result.status,
+    },
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    compile_output: result.compileOutput || '',
+    time: result.time ? result.time / 1000 : null, // Convert to seconds
+    memory: result.memory,
+    execution_time: executionTime,
+    language: language,
+    language_id: languageId,
+    token: null,
+    mode: 'simple',
+  };
+
+  logger.info('Code execution completed (simple):', {
+    language,
+    status: result.status,
+    executionTime: `${executionTime}ms`,
+    hasOutput: !!result.stdout,
+    hasErrors: !!result.stderr,
+  });
+
+  return response;
+}
+
+/**
+ * Run code using Judge0 (remote execution)
+ */
+async function runCodeJudge0(language, languageId, sourceCode, input, options) {
+  const startTime = Date.now();
+    
+  // Submit code for execution
+  const token = await submitCode(
+    languageId,
+    sourceCode,
+    input,
+    options.timeLimit || 5,
+    options.memoryLimit || 128000
+  );
+
+  // Poll for result
+  const result = await pollForResult(token, options.maxAttempts || 30, options.pollInterval || 1000);
+  
+  const executionTime = Date.now() - startTime;
+
+  // Format response
+  const response = {
+    success: true,
+    status: {
+      id: result.status.id,
+      description: result.status.description,
+    },
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    compile_output: result.compile_output || '',
+    time: result.time, // CPU time in seconds
+    memory: result.memory, // Memory in KB
+    execution_time: executionTime, // Total time including network
+    language: language,
+    language_id: languageId,
+    token: token,
+    mode: 'judge0',
+  };
+
+  // Log execution details
+  logger.info('Code execution completed (Judge0):', {
+    language,
+    status: result.status.description,
+    executionTime: `${executionTime}ms`,
+    cpuTime: `${result.time}s`,
+    memory: `${result.memory}KB`,
+    hasOutput: !!result.stdout,
+    hasErrors: !!result.stderr,
+  });
+
+  return response;
 }
 
 /**

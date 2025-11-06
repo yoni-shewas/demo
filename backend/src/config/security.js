@@ -96,7 +96,7 @@ export const authLimiter = rateLimit({
 // Rate limit for code execution (prevent abuse)
 export const codeExecutionLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 10, // Limit each IP to 10 code executions per minute
+  max: process.env.NODE_ENV === 'development' ? 200 : 10, // Higher limit in dev for testing
   message: {
     success: false,
     message: 'Too many code execution requests, please slow down.',

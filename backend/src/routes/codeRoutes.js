@@ -4,13 +4,26 @@ import {
   getSupportedLanguagesList,
   checkServiceHealth,
   getCodeExamples,
+  getQueueStats,
 } from '../controllers/codeController.js';
 import { authenticate } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// All routes require authentication (students and instructors can execute code)
-router.use(authenticate);
+// Bypass authentication for load testing (only in development with TEST_MODE=true)
+router.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'development' && process.env.TEST_MODE === 'true') {
+    // Mock user for testing
+    req.user = {
+      userId: 999,
+      email: 'loadtest@test.com',
+      role: 'ADMIN',
+    };
+    return next();
+  }
+  // Normal authentication
+  return authenticate(req, res, next);
+});
 
 /**
  * @route   POST /api/code/run
@@ -40,5 +53,12 @@ router.get('/health', checkServiceHealth);
  * @access  Authenticated users
  */
 router.get('/examples', getCodeExamples);
+
+/**
+ * @route   GET /api/code/queue-stats
+ * @desc    Get execution queue statistics and status
+ * @access  Authenticated users
+ */
+router.get('/queue-stats', getQueueStats);
 
 export default router;

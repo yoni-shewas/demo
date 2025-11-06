@@ -1,6 +1,7 @@
 import { runCode, getSupportedLanguages, checkJudge0Health, getJudge0Info } from '../services/codeRunner.js';
 import logger from '../config/logger.js';
 import { PrismaClient } from '@prisma/client';
+import executionQueue from '../services/executionQueue.js';
 
 const prisma = new PrismaClient();
 
@@ -21,16 +22,19 @@ export async function executeCode(req, res) {
       });
     }
 
-    // Rate limiting check (optional - can be implemented later)
-    // For now, we'll just log the execution
+    // Log execution request
     logger.info(`Code execution request from user ${req.user.email}`, {
       language,
       codeLength: sourceCode.length,
       hasInput: !!input,
+      queueStatus: executionQueue.getStatus(),
     });
 
-    // Execute code
-    const result = await runCode(language, sourceCode, input, options);
+    // Execute code through queue (max 100 concurrent, rest queued)
+    const result = await executionQueue.enqueue(
+      () => runCode(language, sourceCode, input, options),
+      { language, userId, email: req.user.email }
+    );
 
     // Log execution result
     if (result.success) {
@@ -69,9 +73,22 @@ export async function executeCode(req, res) {
       logger.warn('Failed to update execution engine record:', dbError.message);
     }
 
+    // Add queue info to response headers
+    const queueStats = executionQueue.getStats();
+    res.set({
+      'X-Queue-Running': queueStats.currentlyRunning.toString(),
+      'X-Queue-Queued': queueStats.queued.toString(),
+      'X-Queue-Capacity': queueStats.maxConcurrent.toString(),
+    });
+
     res.status(200).json({
       success: result.success,
       result: result,
+      queueInfo: {
+        running: queueStats.currentlyRunning,
+        queued: queueStats.queued,
+        capacity: queueStats.maxConcurrent,
+      },
     });
   } catch (error) {
     logger.error('Code execution controller error:', error);
@@ -254,6 +271,40 @@ for (let i = 0; i < 10; i++) {
     res.status(500).json({
       success: false,
       message: 'Failed to get code examples',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Get execution queue statistics
+ * GET /api/code/queue-stats
+ */
+export async function getQueueStats(req, res) {
+  try {
+    const stats = executionQueue.getStats();
+    const status = executionQueue.getStatus();
+
+    res.status(200).json({
+      success: true,
+      queue: {
+        status,
+        statistics: stats,
+        health: {
+          utilizationPercent: stats.utilizationPercent,
+          isHealthy: stats.utilizationPercent < 90,
+          message: stats.utilizationPercent > 90 
+            ? 'High load - consider increasing capacity' 
+            : 'System running normally',
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Error getting queue stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get queue statistics',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
