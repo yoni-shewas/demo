@@ -9,12 +9,21 @@ import adminRoutes from './src/routes/adminRoutes.js';
 import instructorRoutes from './src/routes/instructorRoutes.js';
 import studentRoutes from './src/routes/studentRoutes.js';
 import codeRoutes from './src/routes/codeRoutes.js';
+import { helmetConfig, corsConfig, generalLimiter, authLimiter, codeExecutionLimiter } from './src/config/security.js';
+import { errorHandler, notFoundHandler } from './src/middlewares/errorHandler.js';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
-// Logging middleware (must be before routes)
+// Trust proxy for accurate IP addresses in LAN
+app.set('trust proxy', 1);
+
+// Security middleware (must be first)
+app.use(helmetConfig);
+app.use(corsConfig);
+
+// Logging middleware
 app.use(morganMiddleware);
 
 // Body parsing middleware
@@ -22,49 +31,91 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// General rate limiting for all requests
+app.use(generalLimiter);
+
 // Static file serving for uploads
 app.use('/uploads', express.static('uploads'));
 
-// Routes
-app.use('/api/auth', authRoutes);
+// Routes with specific rate limiters
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/student', studentRoutes);
-app.use('/api/code', codeRoutes);
+app.use('/api/code', codeExecutionLimiter, codeRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1;`;
     logger.debug('Health check: Database connected');
-    res.json({ ok: true, db: 'connected' });
+    res.json({ 
+      ok: true, 
+      db: 'connected',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    });
   } catch (e) {
     logger.error('Health check failed:', e);
     res.status(500).json({ ok: false, error: 'DB connection failed' });
   }
 });
 
+// 404 handler (must be after all routes)
+app.use(notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
+
+let server;
+
 async function start() {
   try {
     await prisma.$connect();
     logger.info('Database connected successfully');
     
-    app.listen(PORT, () => {
-      logger.info(`Server started on port ${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`Health check: http://localhost:${PORT}/health`);
+    server = app.listen(PORT, () => {
+      logger.info('========================================');
+      logger.info(`🚀 Server started on port ${PORT}`);
+      logger.info(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`🏥 Health check: http://localhost:${PORT}/health`);
+      logger.info(`🔒 Security: Helmet, CORS, Rate Limiting enabled`);
+      logger.info('========================================');
     });
   } catch (err) {
     logger.error('Failed to start server:', err);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }
 
-process.on('SIGINT', async () => {
-  logger.info('Shutting down gracefully...');
-  await prisma.$disconnect();
-  logger.info('Database disconnected');
-  process.exit(0);
-});
+// Graceful shutdown handler
+async function gracefulShutdown(signal) {
+  logger.info(`${signal} received: Starting graceful shutdown...`);
+  
+  // Stop accepting new connections
+  if (server) {
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
+  }
+  
+  try {
+    // Close database connections
+    await prisma.$disconnect();
+    logger.info('Database connections closed');
+    
+    logger.info('Graceful shutdown completed');
+    process.exit(0);
+  } catch (err) {
+    logger.error('Error during graceful shutdown:', err);
+    process.exit(1);
+  }
+}
+
+// Handle shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {

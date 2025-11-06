@@ -16,13 +16,13 @@ This directory contains a simple Judge0 Docker Compose setup for local developme
 cd docker/judge0
 
 # Start Judge0 services
-docker-compose up -d
+docker compose up -d
 
 # Check if services are running
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f judge0-server
+docker compose logs -f judge0-server
 ```
 
 ### Verify Judge0 is Running
@@ -65,37 +65,37 @@ The Docker Compose setup includes:
 
 ### Stop Services
 ```bash
-docker-compose stop
+docker compose stop
 ```
 
 ### Restart Services
 ```bash
-docker-compose restart
+docker compose restart
 ```
 
 ### Stop and Remove All Containers
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Stop and Remove All Data (INCLUDING DATABASE)
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ### View Logs
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f judge0-server
-docker-compose logs -f judge0-workers
+docker compose logs -f judge0-server
+docker compose logs -f judge0-workers
 ```
 
 ### Check Service Status
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 ## 🔧 Configuration
@@ -108,7 +108,7 @@ Edit `judge0.conf` to change:
 
 After changing configuration:
 ```bash
-docker-compose restart
+docker compose restart
 ```
 
 ## 🧪 Test with Backend
@@ -142,7 +142,7 @@ Full list: https://github.com/judge0/judge0/blob/master/CHANGELOG.md
 ## 🐛 Troubleshooting
 
 ### Port Already in Use
-If port 2358 is already in use, change it in `docker-compose.yml`:
+If port 2358 is already in use, change it in `docker compose.yml`:
 ```yaml
 ports:
   - "2359:2358"  # Use port 2359 instead
@@ -156,7 +156,7 @@ JUDGE0_URL=http://localhost:2359
 ### Services Not Starting
 Check logs for errors:
 ```bash
-docker-compose logs
+docker compose logs
 ```
 
 Check available resources:
@@ -167,8 +167,8 @@ docker system df
 ### Database Connection Issues
 Reset the database:
 ```bash
-docker-compose down -v
-docker-compose up -d
+docker compose down -v
+docker compose up -d
 ```
 
 ### Slow Execution
@@ -195,7 +195,7 @@ MAX_JOBS_IN_QUEUE=50
 
 ## 🎯 Next Steps
 
-1. ✅ Start Judge0: `docker-compose up -d`
+1. ✅ Start Judge0: `docker compose up -d`
 2. ✅ Verify: `curl http://localhost:2358/about`
 3. ✅ Test backend: Check health endpoint
 4. ✅ Execute code: Run sample code through backend

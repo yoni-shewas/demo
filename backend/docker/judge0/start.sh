@@ -14,9 +14,9 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose is not installed. Please install Docker Compose first."
+# Check if Docker Compose is installed (v2 uses 'docker compose')
+if ! docker compose version &> /dev/null; then
+    echo "❌ Docker Compose is not available. Please install Docker with Compose plugin."
     echo "   Visit: https://docs.docker.com/compose/install/"
     exit 1
 fi
@@ -28,7 +28,7 @@ echo ""
 echo "🚀 Starting Judge0 services..."
 echo ""
 
-docker-compose up -d
+docker compose up -d
 
 if [ $? -eq 0 ]; then
     echo ""
@@ -56,13 +56,13 @@ if [ $? -eq 0 ]; then
         echo "   curl http://localhost:2358/about"
         echo ""
         echo "📊 View logs:"
-        echo "   docker-compose logs -f"
+        echo "   docker compose logs -f"
         echo ""
         echo "🛑 Stop services:"
-        echo "   docker-compose stop"
+        echo "   docker compose stop"
         echo ""
         echo "🔄 Restart services:"
-        echo "   docker-compose restart"
+        echo "   docker compose restart"
         echo ""
         echo "✅ You can now use the code execution API!"
         echo ""
@@ -70,11 +70,11 @@ if [ $? -eq 0 ]; then
         echo "⚠️  Judge0 is starting but not ready yet."
         echo "   Wait a few more seconds and check: curl http://localhost:2358/about"
         echo ""
-        echo "   View logs: docker-compose logs -f judge0-server"
+        echo "   View logs: docker compose logs -f judge0-server"
     fi
 else
     echo ""
     echo "❌ Failed to start Judge0 services."
-    echo "   Check the logs: docker-compose logs"
+    echo "   Check the logs: docker compose logs"
     exit 1
 fi

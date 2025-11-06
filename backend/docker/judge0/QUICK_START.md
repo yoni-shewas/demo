@@ -9,7 +9,7 @@ All Judge0 Docker files are ready in: `/home/vorlox/Desktop/codeLan/backend/dock
 
 ```
 docker/judge0/
-├── docker-compose.yml    # Docker Compose configuration
+├── docker compose.yml    # Docker Compose configuration
 ├── judge0.conf          # Judge0 settings
 ├── start.sh            # Quick start script
 ├── README.md           # Detailed documentation
@@ -23,7 +23,7 @@ docker/judge0/
 
 **For Fedora/RHEL:**
 ```bash
-sudo dnf install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo dnf install docker-ce docker-ce-cli containerd.io docker compose-plugin
 sudo systemctl start docker
 sudo systemctl enable docker
 sudo usermod -aG docker $USER
@@ -33,7 +33,7 @@ sudo usermod -aG docker $USER
 **For Ubuntu/Debian:**
 ```bash
 sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker compose-plugin
 sudo usermod -aG docker $USER
 # Logout and login again!
 ```
@@ -137,7 +137,7 @@ Once you start Judge0 Docker, code will execute immediately!
 
 - **README.md** - Complete Judge0 documentation
 - **INSTALL.md** - Docker installation guide
-- **docker-compose.yml** - Service configuration
+- **docker compose.yml** - Service configuration
 - **judge0.conf** - Judge0 settings
 - **start.sh** - Automated startup script
 

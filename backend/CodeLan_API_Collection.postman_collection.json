@@ -1,0 +1,238 @@
+{
+  "info": {
+    "name": "CodeLan API - Complete Test Suite",
+    "description": "Complete API testing for CodeLan LMS with Authentication, Admin, Instructor, Student, and Code Execution endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{auth_token}}", "type": "string"}]
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:3000/api"},
+    {"key": "auth_token", "value": ""},
+    {"key": "admin_token", "value": ""},
+    {"key": "instructor_token", "value": ""},
+    {"key": "student_token", "value": ""},
+    {"key": "section_id", "value": ""},
+    {"key": "assignment_id", "value": ""},
+    {"key": "lesson_id", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": ["var json = pm.response.json();", "pm.collectionVariables.set('admin_token', json.token);", "pm.collectionVariables.set('auth_token', json.token);"]
+            }
+          }],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"email\":\"admin@school.edu\",\"password\":\"admin123\"}"},
+            "url": {"raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"]}
+          }
+        },
+        {
+          "name": "Login Instructor",
+          "event": [{
+            "listen": "test",
+            "script": {"exec": ["var json = pm.response.json();", "pm.collectionVariables.set('instructor_token', json.token);"]}
+          }],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"email\":\"teacher1@school.edu\",\"password\":\"ohF4&62VBaA$\"}"},
+            "url": {"raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"]}
+          }
+        },
+        {
+          "name": "Login Student",
+          "event": [{
+            "listen": "test",
+            "script": {"exec": ["var json = pm.response.json();", "pm.collectionVariables.set('student_token', json.token);"]}
+          }],
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"email\":\"student@test.com\",\"password\":\"test123\"}"},
+            "url": {"raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"]}
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth","me"]}}
+        }
+      ]
+    },
+    {
+      "name": "👑 Admin",
+      "item": [
+        {
+          "name": "Create Instructor",
+          "event": [{
+            "listen": "prerequest",
+            "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('admin_token'));"]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"username\":\"instructor_{{$randomInt}}\",\"email\":\"inst{{$randomInt}}@test.com\",\"password\":\"pass123\",\"role\":\"INSTRUCTOR\",\"firstName\":\"Test\",\"lastName\":\"Instructor\"}"},
+            "url": {"raw": "{{base_url}}/admin/users", "host": ["{{base_url}}"], "path": ["admin","users"]}
+          }
+        },
+        {
+          "name": "Get All Users",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('admin_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/admin/users", "host": ["{{base_url}}"], "path": ["admin","users"]}}
+        },
+        {
+          "name": "Export CSV",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('admin_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/admin/users/export/csv", "host": ["{{base_url}}"], "path": ["admin","users","export","csv"]}}
+        }
+      ]
+    },
+    {
+      "name": "👨‍🏫 Instructor",
+      "item": [
+        {
+          "name": "Get Profile",
+          "event": [
+            {"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('instructor_token'));"]}},
+            {"listen": "test", "script": {"exec": ["var json = pm.response.json();", "if(json.sections && json.sections[0]) pm.collectionVariables.set('section_id', json.sections[0].id);"]}}
+          ],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/instructor/profile", "host": ["{{base_url}}"], "path": ["instructor","profile"]}}
+        },
+        {
+          "name": "Create Lesson",
+          "event": [
+            {"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('instructor_token'));"]}},
+            {"listen": "test", "script": {"exec": ["var json = pm.response.json();", "if(json.lesson) pm.collectionVariables.set('lesson_id', json.lesson.id);"]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"title\":\"Lesson {{$randomInt}}\",\"content\":\"Test content\",\"sectionId\":\"{{section_id}}\"}"},
+            "url": {"raw": "{{base_url}}/instructor/lessons", "host": ["{{base_url}}"], "path": ["instructor","lessons"]}
+          }
+        },
+        {
+          "name": "Get Lessons",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('instructor_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/instructor/lessons", "host": ["{{base_url}}"], "path": ["instructor","lessons"]}}
+        },
+        {
+          "name": "Create Assignment",
+          "event": [
+            {"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('instructor_token'));"]}},
+            {"listen": "test", "script": {"exec": ["var json = pm.response.json();", "if(json.data) pm.collectionVariables.set('assignment_id', json.data.id);"]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"title\":\"Assignment {{$randomInt}}\",\"description\":\"Test assignment\",\"sectionId\":\"{{section_id}}\",\"dueDate\":\"2025-12-31T23:59:59Z\"}"},
+            "url": {"raw": "{{base_url}}/instructor/assignments", "host": ["{{base_url}}"], "path": ["instructor","assignments"]}
+          }
+        },
+        {
+          "name": "Get Assignments",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('instructor_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/instructor/assignments", "host": ["{{base_url}}"], "path": ["instructor","assignments"]}}
+        }
+      ]
+    },
+    {
+      "name": "👨‍🎓 Student",
+      "item": [
+        {
+          "name": "Get Profile",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/student/profile", "host": ["{{base_url}}"], "path": ["student","profile"]}}
+        },
+        {
+          "name": "Get Lessons",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/student/lessons", "host": ["{{base_url}}"], "path": ["student","lessons"]}}
+        },
+        {
+          "name": "Get Assignments",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/student/assignments", "host": ["{{base_url}}"], "path": ["student","assignments"]}}
+        },
+        {
+          "name": "Submit Assignment",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"assignmentId\":\"{{assignment_id}}\",\"submittedCode\":{\"language\":\"python\",\"code\":\"print('Hello')\"}}"},
+            "url": {"raw": "{{base_url}}/student/submissions", "host": ["{{base_url}}"], "path": ["student","submissions"]}
+          }
+        },
+        {
+          "name": "Get Submissions",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/student/submissions", "host": ["{{base_url}}"], "path": ["student","submissions"]}}
+        }
+      ]
+    },
+    {
+      "name": "⚡ Code Execution",
+      "item": [
+        {
+          "name": "Get Languages",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/code/languages", "host": ["{{base_url}}"], "path": ["code","languages"]}}
+        },
+        {
+          "name": "Check Judge0 Health",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/code/health", "host": ["{{base_url}}"], "path": ["code","health"]}}
+        },
+        {
+          "name": "Get Examples",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{base_url}}/code/examples", "host": ["{{base_url}}"], "path": ["code","examples"]}}
+        },
+        {
+          "name": "Execute Python",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"language\":\"python\",\"sourceCode\":\"print('Hello from Python!')\"}"},
+            "url": {"raw": "{{base_url}}/code/run", "host": ["{{base_url}}"], "path": ["code","run"]}
+          }
+        },
+        {
+          "name": "Execute C++",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"language\":\"cpp\",\"sourceCode\":\"#include <iostream>\\nusing namespace std;\\nint main() { cout << \\\"Hello!\\\" << endl; return 0; }\"}"},
+            "url": {"raw": "{{base_url}}/code/run", "host": ["{{base_url}}"], "path": ["code","run"]}
+          }
+        },
+        {
+          "name": "Execute JavaScript",
+          "event": [{"listen": "prerequest", "script": {"exec": ["pm.collectionVariables.set('auth_token', pm.collectionVariables.get('student_token'));"]}}],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"language\":\"javascript\",\"sourceCode\":\"console.log('Hello from JS!')\"}"},
+            "url": {"raw": "{{base_url}}/code/run", "host": ["{{base_url}}"], "path": ["code","run"]}
+          }
+        }
+      ]
+    }
+  ]
+}
