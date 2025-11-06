@@ -1,0 +1,17 @@
+node_modules/
+.env
+.generated/
+.generated/**
+.generated
+# Prisma client (custom output)
+backend/generated/
+backend/generated/**
+/generated/
+/generated/**
+# Logs
+logs/
+*.log
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

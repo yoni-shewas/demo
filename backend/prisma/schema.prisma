@@ -1,0 +1,172 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      Role
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  sessions     Session[]
+  adminProfile      Admin?      @relation("AdminProfile")
+  instructorProfile Instructor? @relation("InstructorProfile")
+  studentProfile    Student?    @relation("StudentProfile")
+}
+
+model Admin {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation("AdminProfile", fields: [userId], references: [id])
+}
+
+model Instructor {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation("InstructorProfile", fields: [userId], references: [id])
+
+  sections Section[]
+}
+
+model Student {
+  id        String  @id @default(uuid())
+  studentId String? @unique // School-assigned student ID (optional, from import)
+  userId    String  @unique
+  user      User    @relation("StudentProfile", fields: [userId], references: [id])
+  batchId   String?
+  sectionId String?
+  batch     Batch?  @relation(fields: [batchId], references: [id])
+  section   Section? @relation(fields: [sectionId], references: [id])
+
+  submissions Submission[]
+
+  @@index([batchId])
+  @@index([sectionId])
+  @@index([studentId])
+}
+
+model Batch {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sections   Section[]
+  students   Student[]
+}
+
+model Section {
+  id           String   @id @default(uuid())
+  name         String
+  batchId      String
+  instructorId String
+  batch        Batch      @relation(fields: [batchId], references: [id])
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  assignments Assignment[]
+  lessons     Lesson[]
+  students    Student[]
+
+  @@index([batchId])
+  @@index([instructorId])
+}
+
+model Assignment {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  starterCode Json?
+  dueDate     DateTime?
+  sectionId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  section     Section    @relation(fields: [sectionId], references: [id])
+  submissions Submission[]
+
+  @@index([sectionId])
+}
+
+model Submission {
+  id              String   @id @default(uuid())
+  assignmentId    String
+  studentId       String
+  attemptNumber   Int
+  submittedCode   Json
+  executionResult Json?
+  submittedAt     DateTime @default(now())
+  score           Float?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  student    Student    @relation(fields: [studentId], references: [id])
+
+  @@unique([assignmentId, studentId, attemptNumber])
+  @@index([assignmentId])
+  @@index([studentId])
+}
+
+model Lesson {
+  id        String @id @default(uuid())
+  title     String
+  content   String?
+  sectionId String
+
+  section   Section @relation(fields: [sectionId], references: [id])
+
+  @@index([sectionId])
+}
+
+model FileManager {
+  id         String   @id @default(uuid())
+  filePath   String
+  uploadedAt DateTime @default(now())
+
+  @@unique([filePath])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model CodeExecutionEngine {
+  id       String @id @default(uuid())
+  name     String
+  language String
+  version  String
+
+  @@unique([name, language, version])
+}
+
+model ExecutionQueueManager {
+  id              String   @id @default(uuid())
+  queueLength     Int      @default(0)
+  maxQueueSize    Int      @default(200)
+  lastProcessedAt DateTime?
+}

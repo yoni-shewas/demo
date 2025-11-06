@@ -1,0 +1,4 @@
+email,student_id,first_name,last_name,role
+student1@school.edu,STU2024001,Alice,Johnson,STUDENT
+student2@school.edu,STU2024002,Bob,Smith,STUDENT
+teacher1@school.edu,,Carol,Williams,INSTRUCTOR

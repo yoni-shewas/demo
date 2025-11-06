@@ -1,0 +1,29 @@
+{
+  "name": "browser-coding-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "create-admin": "node scripts/createAdmin.js"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "csv-parse": "^6.1.0",
+    "csv-stringify": "^6.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "prisma": "5.22.0"
+  }
+}

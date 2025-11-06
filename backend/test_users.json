@@ -1,0 +1,25 @@
+{
+  "users": [
+    {
+      "email": "admin2@school.edu",
+      "username": "admin2",
+      "password": "admin123",
+      "role": "ADMIN",
+      "firstName": "Admin",
+      "lastName": "User"
+    },
+    {
+      "email": "instructor1@school.edu",
+      "role": "INSTRUCTOR",
+      "first_name": "David",
+      "last_name": "Brown"
+    },
+    {
+      "email": "student10@school.edu",
+      "student_id": "STU2024010",
+      "role": "STUDENT",
+      "firstName": "Emma",
+      "lastName": "Davis"
+    }
+  ]
+}
