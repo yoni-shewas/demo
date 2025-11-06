@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import logger from '../config/logger.js';
+import { getFileUrl, deleteFile } from '../config/upload.js';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -466,7 +468,351 @@ export async function deleteAssignment(req, res) {
     logger.error('Delete assignment error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete assignment',
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Create a new lesson
+ * POST /api/instructor/lessons
+ */
+export async function createLesson(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { title, content, sectionId } = req.body;
+
+    // Validation
+    if (!title || !sectionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title and section ID are required',
+      });
+    }
+
+    // Verify instructor owns the section
+    const instructor = await prisma.instructor.findUnique({
+      where: { userId },
+      include: {
+        sections: {
+          where: { id: sectionId },
+        },
+      },
+    });
+
+    if (!instructor || instructor.sections.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only create lessons for your own sections',
+      });
+    }
+
+    // Handle file attachments
+    const attachments = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        attachments.push({
+          filename: file.originalname,
+          filepath: path.relative(path.join(process.cwd(), 'uploads'), file.path),
+          mimetype: file.mimetype,
+          size: file.size,
+        });
+      });
+    }
+
+    // Create lesson
+    const lesson = await prisma.lesson.create({
+      data: {
+        title,
+        content: content || null,
+        sectionId,
+        attachments: attachments.length > 0 ? JSON.stringify(attachments) : null,
+      },
+      include: {
+        section: {
+          include: {
+            batch: true,
+          },
+        },
+      },
+    });
+
+    // Add file URLs to response
+    const lessonWithUrls = {
+      ...lesson,
+      attachments: attachments.map(att => ({
+        ...att,
+        url: getFileUrl(req, att.filepath),
+      })),
+    };
+
+    logger.info(`Instructor created lesson: ${title} for section ${sectionId}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Lesson created successfully',
+      lesson: lessonWithUrls,
+    });
+  } catch (error) {
+    logger.error('Create lesson error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Get all lessons for instructor's sections
+ * GET /api/instructor/lessons
+ */
+export async function getLessons(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { sectionId } = req.query;
+
+    // Get instructor's sections
+    const instructor = await prisma.instructor.findUnique({
+      where: { userId },
+      include: {
+        sections: {
+          include: {
+            lessons: {
+              orderBy: { createdAt: 'desc' },
+            },
+            batch: true,
+          },
+        },
+      },
+    });
+
+    if (!instructor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Instructor profile not found',
+      });
+    }
+
+    let lessons = [];
+    
+    if (sectionId) {
+      // Get lessons for specific section
+      const section = instructor.sections.find(s => s.id === sectionId);
+      if (section) {
+        lessons = section.lessons;
+      }
+    } else {
+      // Get all lessons from all sections
+      instructor.sections.forEach(section => {
+        lessons.push(...section.lessons.map(lesson => ({
+          ...lesson,
+          section: {
+            id: section.id,
+            name: section.name,
+            batch: section.batch,
+          },
+        })));
+      });
+      
+      // Sort by creation date
+      lessons.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    // Add file URLs to attachments
+    const lessonsWithUrls = lessons.map(lesson => {
+      let attachments = [];
+      if (lesson.attachments) {
+        try {
+          attachments = JSON.parse(lesson.attachments).map(att => ({
+            ...att,
+            url: getFileUrl(req, att.filepath),
+          }));
+        } catch (e) {
+          logger.warn('Failed to parse lesson attachments:', e);
+        }
+      }
+      
+      return {
+        ...lesson,
+        attachments,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      lessons: lessonsWithUrls,
+      total: lessonsWithUrls.length,
+    });
+  } catch (error) {
+    logger.error('Get lessons error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Update a lesson
+ * PUT /api/instructor/lessons/:lessonId
+ */
+export async function updateLesson(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { lessonId } = req.params;
+    const { title, content } = req.body;
+
+    // Verify lesson belongs to instructor
+    const lesson = await prisma.lesson.findFirst({
+      where: {
+        id: lessonId,
+        section: {
+          instructorId: {
+            in: await prisma.instructor.findMany({
+              where: { userId },
+              select: { id: true },
+            }).then(instructors => instructors.map(i => i.id)),
+          },
+        },
+      },
+    });
+
+    if (!lesson) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lesson not found or access denied',
+      });
+    }
+
+    // Handle new file attachments
+    let existingAttachments = [];
+    if (lesson.attachments) {
+      try {
+        existingAttachments = JSON.parse(lesson.attachments);
+      } catch (e) {
+        logger.warn('Failed to parse existing attachments:', e);
+      }
+    }
+
+    const newAttachments = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        newAttachments.push({
+          filename: file.originalname,
+          filepath: path.relative(path.join(process.cwd(), 'uploads'), file.path),
+          mimetype: file.mimetype,
+          size: file.size,
+        });
+      });
+    }
+
+    const allAttachments = [...existingAttachments, ...newAttachments];
+
+    // Update lesson
+    const updatedLesson = await prisma.lesson.update({
+      where: { id: lessonId },
+      data: {
+        ...(title && { title }),
+        ...(content !== undefined && { content }),
+        ...(allAttachments.length > 0 && { attachments: JSON.stringify(allAttachments) }),
+      },
+      include: {
+        section: {
+          include: {
+            batch: true,
+          },
+        },
+      },
+    });
+
+    // Add file URLs to response
+    const lessonWithUrls = {
+      ...updatedLesson,
+      attachments: allAttachments.map(att => ({
+        ...att,
+        url: getFileUrl(req, att.filepath),
+      })),
+    };
+
+    logger.info(`Instructor updated lesson: ${lessonId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Lesson updated successfully',
+      lesson: lessonWithUrls,
+    });
+  } catch (error) {
+    logger.error('Update lesson error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Delete a lesson
+ * DELETE /api/instructor/lessons/:lessonId
+ */
+export async function deleteLesson(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { lessonId } = req.params;
+
+    // Verify lesson belongs to instructor
+    const lesson = await prisma.lesson.findFirst({
+      where: {
+        id: lessonId,
+        section: {
+          instructorId: {
+            in: await prisma.instructor.findMany({
+              where: { userId },
+              select: { id: true },
+            }).then(instructors => instructors.map(i => i.id)),
+          },
+        },
+      },
+    });
+
+    if (!lesson) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lesson not found or access denied',
+      });
+    }
+
+    // Delete associated files
+    if (lesson.attachments) {
+      try {
+        const attachments = JSON.parse(lesson.attachments);
+        attachments.forEach(att => {
+          deleteFile(att.filepath);
+        });
+      } catch (e) {
+        logger.warn('Failed to delete lesson attachments:', e);
+      }
+    }
+
+    // Delete lesson
+    await prisma.lesson.delete({
+      where: { id: lessonId },
+    });
+
+    logger.info(`Instructor deleted lesson: ${lessonId}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Lesson deleted successfully',
+    });
+  } catch (error) {
+    logger.error('Delete lesson error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
