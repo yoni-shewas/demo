@@ -1,0 +1,9 @@
+This is a sample lesson file for testing file uploads.
+
+Lesson Content:
+- Introduction to JavaScript
+- Variables and Data Types
+- Functions and Scope
+- DOM Manipulation
+
+This file should be uploaded as an attachment to a lesson.

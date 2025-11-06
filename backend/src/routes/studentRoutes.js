@@ -6,8 +6,11 @@ import {
   submitAssignment,
   getSubmissions,
   getAssignmentSubmissions,
+  getLessons,
+  getLesson,
 } from '../controllers/studentController.js';
 import { authenticate, authorize } from '../middlewares/authMiddleware.js';
+import { submissionUpload } from '../config/upload.js';
 
 const router = express.Router();
 
@@ -35,13 +38,7 @@ router.get('/assignments', getAssignments);
  */
 router.get('/assignments/:assignmentId', getAssignment);
 
-/**
- * @route   POST /api/student/submissions
- * @desc    Submit code for an assignment
- * @access  Student only
- * @body    { assignmentId, submittedCode, executionResult }
- */
-router.post('/submissions', submitAssignment);
+// Submission route moved below with file upload
 
 /**
  * @route   GET /api/student/submissions
@@ -51,10 +48,35 @@ router.post('/submissions', submitAssignment);
 router.get('/submissions', getSubmissions);
 
 /**
- * @route   GET /api/student/assignments/:assignmentId/submissions
+ * @route   GET /api/student/submissions/:assignmentId
  * @desc    Get submissions for a specific assignment
  * @access  Student only
  */
-router.get('/assignments/:assignmentId/submissions', getAssignmentSubmissions);
+router.get('/submissions/:assignmentId', getAssignmentSubmissions);
+
+/**
+ * @route   POST /api/student/submissions
+ * @desc    Submit assignment with file uploads
+ * @access  Student only
+ * @body    { assignmentId, submittedCode }
+ * @files   Multiple files (max 10, 5MB each)
+ */
+router.post('/submissions', submissionUpload.array('files', 10), submitAssignment);
+
+// ========== LESSON ROUTES ==========
+
+/**
+ * @route   GET /api/student/lessons
+ * @desc    Get all lessons for student's section
+ * @access  Student only
+ */
+router.get('/lessons', getLessons);
+
+/**
+ * @route   GET /api/student/lessons/:lessonId
+ * @desc    Get a specific lesson
+ * @access  Student only
+ */
+router.get('/lessons/:lessonId', getLesson);
 
 export default router;

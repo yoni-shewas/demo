@@ -11,6 +11,8 @@ backend/generated/**
 # Logs
 logs/
 *.log
+# Uploads
+uploads/
 # OS/editor
 .DS_Store
 .idea/

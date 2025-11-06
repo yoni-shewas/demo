@@ -7,8 +7,13 @@ import {
   getAssignmentSubmissions,
   updateAssignment,
   deleteAssignment,
+  createLesson,
+  getLessons,
+  updateLesson,
+  deleteLesson,
 } from '../controllers/instructorController.js';
 import { authenticate, authorize } from '../middlewares/authMiddleware.js';
+import { lessonUpload, assignmentUpload } from '../config/upload.js';
 
 const router = express.Router();
 
@@ -64,5 +69,40 @@ router.delete('/assignments/:assignmentId', deleteAssignment);
  * @access  Instructor only
  */
 router.get('/assignments/:assignmentId/submissions', getAssignmentSubmissions);
+
+// ========== LESSON ROUTES ==========
+
+/**
+ * @route   POST /api/instructor/lessons
+ * @desc    Create a new lesson with file attachments
+ * @access  Instructor only
+ * @body    { title, content, sectionId }
+ * @files   Multiple files (max 5, 5MB each)
+ */
+router.post('/lessons', lessonUpload.array('files', 5), createLesson);
+
+/**
+ * @route   GET /api/instructor/lessons
+ * @desc    Get all lessons for instructor's sections
+ * @access  Instructor only
+ * @query   sectionId (optional)
+ */
+router.get('/lessons', getLessons);
+
+/**
+ * @route   PUT /api/instructor/lessons/:lessonId
+ * @desc    Update a lesson
+ * @access  Instructor only
+ * @body    { title, content }
+ * @files   Additional files (max 5, 5MB each)
+ */
+router.put('/lessons/:lessonId', lessonUpload.array('files', 5), updateLesson);
+
+/**
+ * @route   DELETE /api/instructor/lessons/:lessonId
+ * @desc    Delete a lesson
+ * @access  Instructor only
+ */
+router.delete('/lessons/:lessonId', deleteLesson);
 
 export default router;

@@ -112,7 +112,8 @@ model Submission {
   assignmentId    String
   studentId       String
   attemptNumber   Int
-  submittedCode   Json
+  submittedCode   Json?
+  attachments     String?  // JSON string of file attachments
   executionResult Json?
   submittedAt     DateTime @default(now())
   score           Float?
@@ -126,12 +127,14 @@ model Submission {
 }
 
 model Lesson {
-  id        String @id @default(uuid())
-  title     String
-  content   String?
-  sectionId String
-
-  section   Section @relation(fields: [sectionId], references: [id])
+  id          String   @id @default(uuid())
+  title       String
+  content     String?
+  attachments String?  // JSON string of file attachments
+  sectionId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  section     Section  @relation(fields: [sectionId], references: [id])
 
   @@index([sectionId])
 }
