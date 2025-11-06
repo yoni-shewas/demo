@@ -6,6 +6,8 @@ import logger from './src/config/logger.js';
 import morganMiddleware from './src/middlewares/loggerMiddleware.js';
 import authRoutes from './src/routes/authRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
+import instructorRoutes from './src/routes/instructorRoutes.js';
+import studentRoutes from './src/routes/studentRoutes.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -22,6 +24,8 @@ app.use(cookieParser());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/instructor', instructorRoutes);
+app.use('/api/student', studentRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
