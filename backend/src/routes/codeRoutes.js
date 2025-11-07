@@ -10,10 +10,9 @@ import { authenticate } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
-// Bypass authentication for load testing (only in development with TEST_MODE=true)
+// Skip auth in development with LOAD_TEST mode for performance testing
 router.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'development' && process.env.TEST_MODE === 'true') {
-    // Mock user for testing
+  if (process.env.NODE_ENV === 'development' && process.env.LOAD_TEST === 'true') {
     req.user = {
       userId: 999,
       email: 'loadtest@test.com',
@@ -21,44 +20,22 @@ router.use((req, res, next) => {
     };
     return next();
   }
-  // Normal authentication
   return authenticate(req, res, next);
 });
 
-/**
- * @route   POST /api/code/run
- * @desc    Execute code using Judge0 engine
- * @access  Authenticated users (students, instructors, admins)
- * @body    { language, sourceCode, input?, options? }
- */
+// POST /api/code/run
 router.post('/run', executeCode);
 
-/**
- * @route   GET /api/code/languages
- * @desc    Get list of supported programming languages
- * @access  Authenticated users
- */
+// GET /api/code/languages
 router.get('/languages', getSupportedLanguagesList);
 
-/**
- * @route   GET /api/code/health
- * @desc    Check Judge0 service health and availability
- * @access  Authenticated users
- */
+// GET /api/code/health
 router.get('/health', checkServiceHealth);
 
-/**
- * @route   GET /api/code/examples
- * @desc    Get code examples for different languages
- * @access  Authenticated users
- */
+// GET /api/code/examples
 router.get('/examples', getCodeExamples);
 
-/**
- * @route   GET /api/code/queue-stats
- * @desc    Get execution queue statistics and status
- * @access  Authenticated users
- */
+// GET /api/code/queue-stats
 router.get('/queue-stats', getQueueStats);
 
 export default router;

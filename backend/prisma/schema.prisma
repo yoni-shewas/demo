@@ -16,6 +16,13 @@ enum Role {
   STUDENT
 }
 
+enum SubmissionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVIEWED 
+}
+
 model User {
   id        String   @id @default(uuid())
   username  String   @unique
@@ -97,6 +104,8 @@ model Assignment {
   description String?
   starterCode Json?
   dueDate     DateTime?
+  //submission status 
+  submissionStatus String @default("PENDING")
   sectionId   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

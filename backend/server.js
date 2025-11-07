@@ -16,53 +16,56 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
 
-// Trust proxy for accurate IP addresses in LAN
 app.set('trust proxy', 1);
 
-// Security middleware (must be first)
+// Security middleware
 app.use(helmetConfig);
 app.use(corsConfig);
-
-// Disable rate limiting in TEST_MODE
-if (process.env.TEST_MODE !== 'true') {
-  app.use(generalLimiter);
-}
+app.use(generalLimiter);
 
 // Logging middleware
 app.use(morganMiddleware);
 
-// Body parsing middleware
+// Response logger for errors (4XX and 5XX)
+app.use((req, res, next) => {
+  const originalSend = res.send;
+  res.send = function(data) {
+    if (res.statusCode >= 400) {
+      logger.error(`${res.statusCode} ${req.method} ${req.path}`, {
+        status: res.statusCode,
+        method: req.method,
+        path: req.path,
+        ip: req.ip,
+        user: req.user?.email,
+        response: typeof data === 'string' ? data.substring(0, 500) : JSON.stringify(data).substring(0, 500)
+      });
+    }
+    originalSend.call(this, data);
+  };
+  next();
+});
+
+// Body parsing
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Static file serving for uploads
+// Static files
 app.use('/uploads', express.static('uploads'));
 
-// Routes with specific rate limiters
-if (process.env.TEST_MODE === 'true') {
-  app.use('/api/auth', authRoutes);
-} else {
-  app.use('/api/auth', authLimiter, authRoutes);
-}
+// Routes
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/instructor', instructorRoutes);
 app.use('/api/student', studentRoutes);
-
-// Apply rate limiter only if NOT in TEST_MODE
-if (process.env.TEST_MODE === 'true') {
-  logger.warn('⚠️  TEST_MODE active: Rate limiting DISABLED for code execution');
-  app.use('/api/code', codeRoutes);
-} else {
-  app.use('/api/code', codeExecutionLimiter, codeRoutes);
-}
+app.use('/api/code', codeExecutionLimiter, codeRoutes);
 
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1;`;
     logger.debug('Health check: Database connected');
     res.json({ 
-      ok: true, 
+      ok: true,
       db: 'connected',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
@@ -89,10 +92,13 @@ async function start() {
     
     server = app.listen(PORT, () => {
       logger.info('========================================');
-      logger.info(`🚀 Server started on port ${PORT}`);
-      logger.info(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`🏥 Health check: http://localhost:${PORT}/health`);
-      logger.info(`🔒 Security: Helmet, CORS, Rate Limiting enabled`);
+      logger.info(`Server started on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Health check: http://localhost:${PORT}/health`);
+      logger.info(`Rate limiting: ${process.env.NODE_ENV === 'production' ? 'enabled' : 'disabled'}`);
+      if (process.env.LOAD_TEST === 'true') {
+        logger.warn('LOAD_TEST mode: Authentication bypassed for /api/code routes');
+      }
       logger.info('========================================');
     });
   } catch (err) {

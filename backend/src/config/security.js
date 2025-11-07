@@ -3,12 +3,7 @@ import rateLimit from 'express-rate-limit';
 import cors from 'cors';
 import logger from './logger.js';
 
-/**
- * Security Configuration for LAN Deployment
- * Includes Helmet, Rate Limiting, and CORS
- */
-
-// Helmet Configuration - Security headers
+// Helmet Configuration
 export const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
@@ -27,7 +22,7 @@ export const helmetConfig = helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 });
 
-// CORS Configuration - Allow LAN access
+// CORS Configuration
 export const corsConfig = cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -56,85 +51,65 @@ export const corsConfig = cors({
   maxAge: 600, // 10 minutes
 });
 
-// Rate Limiting Configuration
-export const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.',
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+// Rate limiting - production only
+const isProduction = process.env.NODE_ENV === 'production';
+
+const createLimiter = (config) => {
+  if (!isProduction) {
+    return (req, res, next) => next();
+  }
+  return rateLimit({
+    ...config,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+};
+
+export const generalLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many requests' },
   handler: (req, res) => {
-    logger.warn(`Rate limit exceeded for IP: ${req.ip} on ${req.path}`);
-    res.status(429).json({
-      success: false,
-      message: 'Too many requests, please try again later.',
-    });
+    logger.warn(`Rate limit exceeded: ${req.ip} on ${req.path}`);
+    res.status(429).json({ success: false, message: 'Too many requests' });
   },
 });
 
-// Stricter rate limit for authentication endpoints
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login requests per windowMs
-  skipSuccessfulRequests: true, // Don't count successful requests
-  message: {
-    success: false,
-    message: 'Too many login attempts, please try again after 15 minutes.',
-  },
+export const authLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  skipSuccessfulRequests: true,
+  message: { success: false, message: 'Too many login attempts' },
   handler: (req, res) => {
-    logger.warn(`Auth rate limit exceeded for IP: ${req.ip}`);
-    res.status(429).json({
-      success: false,
-      message: 'Too many login attempts, please try again after 15 minutes.',
-    });
+    logger.warn(`Auth rate limit exceeded: ${req.ip}`);
+    res.status(429).json({ success: false, message: 'Too many login attempts' });
   },
 });
 
-// Rate limit for code execution (prevent abuse)
-export const codeExecutionLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: process.env.NODE_ENV === 'development' ? 200 : 10, // Higher limit in dev for testing
-  message: {
-    success: false,
-    message: 'Too many code execution requests, please slow down.',
-  },
+export const codeExecutionLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many code executions' },
   handler: (req, res) => {
-    logger.warn(`Code execution rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
-    res.status(429).json({
-      success: false,
-      message: 'Too many code execution requests, please wait before trying again.',
-    });
+    logger.warn(`Code execution rate limit: ${req.ip}, User: ${req.user?.email}`);
+    res.status(429).json({ success: false, message: 'Too many code executions' });
   },
 });
 
-// Rate limit for file uploads
-export const uploadLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 20, // Limit each IP to 20 uploads per 5 minutes
-  message: {
-    success: false,
-    message: 'Too many file uploads, please try again later.',
-  },
+export const uploadLimiter = createLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Too many uploads' },
   handler: (req, res) => {
-    logger.warn(`Upload rate limit exceeded for IP: ${req.ip}`);
-    res.status(429).json({
-      success: false,
-      message: 'Too many file uploads, please wait before uploading again.',
-    });
+    logger.warn(`Upload rate limit exceeded: ${req.ip}`);
+    res.status(429).json({ success: false, message: 'Too many uploads' });
   },
 });
 
-// Rate limit for API endpoints that modify data
-export const modifyLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 50, // Limit each IP to 50 modifications per 5 minutes
-  message: {
-    success: false,
-    message: 'Too many modification requests, please slow down.',
-  },
+export const modifyLimiter = createLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 50,
+  message: { success: false, message: 'Too many modification requests' },
 });
 
 export default {

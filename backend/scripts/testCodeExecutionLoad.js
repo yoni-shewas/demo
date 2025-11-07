@@ -1,18 +1,9 @@
 #!/usr/bin/env node
 
-/**
- * Code Execution Load Test
- * Tests concurrent execution with 100+ requests
- * Measures: parallelism, min/max/avg times, throughput
- */
-
-// Node.js 18+ has built-in fetch, no import needed
-
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const NUM_REQUESTS = parseInt(process.env.NUM_REQUESTS) || 100;
-const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10; // Batch size
+const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10;
 
-// Realistic Python code examples
 const PYTHON_SAMPLES = [
   {
     name: 'Fibonacci Calculator',
@@ -93,7 +84,7 @@ for student, grades in students.items():
 
 # Find top student
 top = max(students.items(), key=lambda x: sum(x[1]) / len(x[1]))
-print(f"\\nTop Student: {top[0]} with {sum(top[1]) / len(top[1]):.2f}")`,
+print(f"Top Student: {top[0]} with {sum(top[1]) / len(top[1]):.2f}")`,
   },
 ];
 
@@ -117,18 +108,13 @@ function calculateStats(times) {
   };
 }
 
-// No login needed in TEST_MODE - authentication is bypassed
-
-// Execute a single code request (no auth needed in TEST_MODE)
 async function executeCode(language, sourceCode, requestId) {
   const startTime = Date.now();
   
   try {
     const response = await fetch(`${BASE_URL}/api/code/run`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language, sourceCode }),
     });
 
@@ -136,11 +122,13 @@ async function executeCode(language, sourceCode, requestId) {
     const duration = endTime - startTime;
 
     if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`[Request ${requestId}] HTTP ${response.status}: ${errorBody}`);
       return {
         requestId,
         success: false,
         error: `HTTP ${response.status}`,
-        duration,
+        duration
       };
     }
 
@@ -165,7 +153,6 @@ async function executeCode(language, sourceCode, requestId) {
   }
 }
 
-// Run batch of requests with limited concurrency
 async function runBatch(requests, batchSize) {
   const results = [];
   
@@ -177,30 +164,21 @@ async function runBatch(requests, batchSize) {
       )
     );
     results.push(...batchResults);
-    
-    // Progress indicator
-    process.stdout.write(`\r⏳ Progress: ${Math.min(i + batchSize, requests.length)}/${requests.length} requests`);
+    process.stdout.write(`\rProgress: ${Math.min(i + batchSize, requests.length)}/${requests.length}`);
   }
   
-  console.log(); // New line after progress
+  console.log();
   return results;
 }
 
-// Main test function
 async function runLoadTest() {
-  console.log('╔══════════════════════════════════════════════════════════════╗');
-  console.log('║    Code Execution Load Test - Concurrent Performance        ║');
-  console.log('╚══════════════════════════════════════════════════════════════╝\n');
+  console.log('\n=== Code Execution Load Test ===\n');
+  console.log(`Total Requests: ${NUM_REQUESTS}`);
+  console.log(`Concurrency: ${CONCURRENCY}`);
+  console.log(`Target: ${BASE_URL}`);
+  console.log(`Language: Python`);
+  console.log(`Mode: Load test (auth bypassed)\n`);
 
-  console.log(`📊 Test Configuration:`);
-  console.log(`   - Total Requests: ${NUM_REQUESTS}`);
-  console.log(`   - Concurrency (batch size): ${CONCURRENCY}`);
-  console.log(`   - Target: ${BASE_URL}`);
-  console.log(`   - Language: Python (realistic examples)`);
-  console.log(`   - Mode: TEST_MODE (bypass auth & rate limits)\n`);
-
-  // Prepare requests (distribute samples evenly)
-  console.log('📝 Preparing test requests...');
   const requests = [];
   for (let i = 0; i < NUM_REQUESTS; i++) {
     const sample = PYTHON_SAMPLES[i % PYTHON_SAMPLES.length];
@@ -211,10 +189,8 @@ async function runLoadTest() {
       sampleName: sample.name,
     });
   }
-  console.log(`✅ Generated ${NUM_REQUESTS} requests\n`);
+  console.log(`Prepared ${NUM_REQUESTS} requests\n`);
 
-  // Run load test
-  console.log('🚀 Starting load test with execution queue (max 100 concurrent)...\n');
   const overallStart = Date.now();
   
   const results = await runBatch(requests, CONCURRENCY);
@@ -222,9 +198,8 @@ async function runLoadTest() {
   const overallEnd = Date.now();
   const totalDuration = overallEnd - overallStart;
 
-  console.log('\n✅ Load test completed!\n');
+  console.log('\n\nTest completed\n');
 
-  // Analyze results
   const successful = results.filter(r => r.success);
   const failed = results.filter(r => !r.success);
   
@@ -232,15 +207,10 @@ async function runLoadTest() {
   const executionTimes = successful.map(r => r.executionTime);
   
   const stats = calculateStats(totalTimes);
-  const execStats = calculateStats(executionTimes);
+  const execStats = executionTimes.length > 0 ? calculateStats(executionTimes) : null;
 
-  // Print results
-  console.log('╔══════════════════════════════════════════════════════════════╗');
-  console.log('║                       TEST RESULTS                           ║');
-  console.log('╚══════════════════════════════════════════════════════════════╝\n');
-
-  console.log('📈 Overall Performance:');
-  console.log('─────────────────────────────────────────────────────────');
+  console.log('=== TEST RESULTS ===\n');
+  console.log('Overall Performance:');
   console.log(`   Total Requests:        ${NUM_REQUESTS}`);
   console.log(`   Successful:            ${successful.length} (${(successful.length/NUM_REQUESTS*100).toFixed(1)}%)`);
   console.log(`   Failed:                ${failed.length} (${(failed.length/NUM_REQUESTS*100).toFixed(1)}%)`);
@@ -248,9 +218,7 @@ async function runLoadTest() {
   console.log(`   Throughput:            ${(NUM_REQUESTS / (totalDuration/1000)).toFixed(2)} req/s`);
   console.log(`   Concurrency Level:     ${CONCURRENCY} parallel requests`);
   console.log();
-
-  console.log('⏱️  Request Time Statistics (End-to-End):');
-  console.log('─────────────────────────────────────────────────────────');
+  console.log('Request Time Statistics (ms):');
   console.log(`   Fastest Request:       ${stats.min}ms`);
   console.log(`   Slowest Request:       ${stats.max}ms`);
   console.log(`   Average Time:          ${stats.avg.toFixed(2)}ms`);
@@ -260,52 +228,55 @@ async function runLoadTest() {
   console.log(`   95th Percentile:       ${stats.p95}ms`);
   console.log(`   99th Percentile:       ${stats.p99}ms`);
   console.log();
-
-  console.log('🔧 Code Execution Time (Server-side only):');
-  console.log('─────────────────────────────────────────────────────────');
-  console.log(`   Fastest Execution:     ${execStats.min}ms`);
-  console.log(`   Slowest Execution:     ${execStats.max}ms`);
-  console.log(`   Average Execution:     ${execStats.avg.toFixed(2)}ms`);
-  console.log(`   Median Execution:      ${execStats.median}ms`);
-  console.log();
-
-  console.log('🎯 Parallelism Analysis:');
-  console.log('─────────────────────────────────────────────────────────');
-  const theoreticalSerial = successful.reduce((sum, r) => sum + r.executionTime, 0);
-  const parallelSpeedup = theoreticalSerial / totalDuration;
-  const parallelEfficiency = (parallelSpeedup / CONCURRENCY) * 100;
   
-  console.log(`   Serial Time (theoretical): ${(theoreticalSerial/1000).toFixed(2)}s`);
-  console.log(`   Parallel Time (actual):    ${(totalDuration/1000).toFixed(2)}s`);
-  console.log(`   Speedup Factor:            ${parallelSpeedup.toFixed(2)}x`);
-  console.log(`   Parallel Efficiency:       ${parallelEfficiency.toFixed(1)}%`);
-  console.log(`   Effective Parallelism:     ~${Math.floor(parallelSpeedup)} concurrent tasks`);
-  console.log();
-
-  // Sample breakdown by type
-  console.log('📊 Performance by Code Sample:');
-  console.log('─────────────────────────────────────────────────────────');
+  if (execStats) {
+    console.log('Execution Time (server-side only):');
+    console.log(`   Fastest Execution:     ${execStats.min}ms`);
+    console.log(`   Slowest Execution:     ${execStats.max}ms`);
+    console.log(`   Average Execution:     ${execStats.avg.toFixed(2)}ms`);
+    console.log(`   Median Execution:      ${execStats.median}ms`);
+    console.log();
+  } else {
+    console.log('Execution Time: No successful executions\n');
+  }
   
-  const sampleGroups = {};
-  requests.forEach((req, idx) => {
-    if (!sampleGroups[req.sampleName]) {
-      sampleGroups[req.sampleName] = [];
-    }
-    if (results[idx].success) {
-      sampleGroups[req.sampleName].push(results[idx].executionTime);
-    }
-  });
+  let parallelSpeedup = 0;
+  
+  if (successful.length > 0) {
+    console.log('Parallelism Analysis:');
+    const theoreticalSerial = successful.reduce((sum, r) => sum + r.executionTime, 0);
+    parallelSpeedup = theoreticalSerial / totalDuration;
+    const parallelEfficiency = (parallelSpeedup / CONCURRENCY) * 100;
+    
+    console.log(`   Serial Time (theoretical): ${(theoreticalSerial/1000).toFixed(2)}s`);
+    console.log(`   Parallel Time (actual):    ${(totalDuration/1000).toFixed(2)}s`);
+    console.log(`   Speedup Factor:            ${parallelSpeedup.toFixed(2)}x`);
+    console.log(`   Parallel Efficiency:       ${parallelEfficiency.toFixed(1)}%`);
+    console.log(`   Effective Parallelism:     ~${Math.floor(parallelSpeedup)} concurrent tasks`);
+    console.log();
+  }
+  if (successful.length > 0) {
+    console.log('Performance by Sample:');
+    
+    const sampleGroups = {};
+    requests.forEach((req, idx) => {
+      if (!sampleGroups[req.sampleName]) {
+        sampleGroups[req.sampleName] = [];
+      }
+      if (results[idx].success) {
+        sampleGroups[req.sampleName].push(results[idx].executionTime);
+      }
+    });
 
-  Object.entries(sampleGroups).forEach(([name, times]) => {
-    const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    console.log(`   ${name.padEnd(30)} ${avg.toFixed(2)}ms avg (${times.length} runs)`);
-  });
-  console.log();
+    Object.entries(sampleGroups).forEach(([name, times]) => {
+      const avg = times.reduce((a, b) => a + b, 0) / times.length;
+      console.log(`   ${name.padEnd(30)} ${avg.toFixed(2)}ms avg (${times.length} runs)`);
+    });
+    console.log();
+  }
 
-  // Error details if any
   if (failed.length > 0) {
-    console.log('❌ Failed Requests:');
-    console.log('─────────────────────────────────────────────────────────');
+    console.log('Failed Requests:');
     const errorGroups = {};
     failed.forEach(f => {
       const key = f.error || f.status || 'Unknown';
@@ -317,42 +288,30 @@ async function runLoadTest() {
     console.log();
   }
 
-  console.log('╔══════════════════════════════════════════════════════════════╗');
-  console.log('║                    TEST COMPLETE                             ║');
-  console.log('╚══════════════════════════════════════════════════════════════╝\n');
-
-  // Summary recommendations
-  console.log('💡 Key Insights:\n');
+  console.log('\n=== TEST COMPLETE ===\n');
   
   if (stats.max > 5000) {
-    console.log('   ⚠️  Some requests took longer than 5s - consider optimization');
+    console.log('WARNING: Some requests took longer than 5s');
   } else if (stats.max < 1000) {
-    console.log('   ✅ All requests completed quickly (<1s) - excellent performance!');
-  } else {
-    console.log('   ✅ Response times are reasonable for production use');
+    console.log('OK: All requests completed quickly (<1s)');
   }
 
-  if (parallelSpeedup > CONCURRENCY * 0.7) {
-    console.log('   ✅ Good parallelism - system handles concurrent load well');
-  } else {
-    console.log('   ⚠️  Limited parallelism - may have bottlenecks');
+  if (successful.length > 0 && parallelSpeedup < CONCURRENCY * 0.7) {
+    console.log('WARNING: Limited parallelism detected');
   }
 
   if (failed.length === 0) {
-    console.log('   ✅ Perfect success rate - no errors under load!');
-  } else if (failed.length < NUM_REQUESTS * 0.01) {
-    console.log('   ⚠️  <1% error rate - acceptable but monitor for issues');
-  } else {
-    console.log('   ❌ High error rate - investigate system capacity');
+    console.log('SUCCESS: Perfect success rate');
+  } else if (failed.length >= NUM_REQUESTS * 0.01) {
+    console.log('ERROR: High error rate detected');
   }
 
   console.log();
   process.exit(failed.length > 0 ? 1 : 0);
 }
 
-// Run the test
 runLoadTest().catch(error => {
-  console.error('\n❌ Load test failed:', error.message);
+  console.error('\nTest failed:', error.message);
   console.error(error.stack);
   process.exit(1);
 });

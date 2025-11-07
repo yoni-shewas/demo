@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js",
+    "dev": "NODE_ENV=development LOAD_TEST=true node server.js",
+    "start": "NODE_ENV=production node server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "create-admin": "node scripts/createAdmin.js",
-    "test:rbac": "node scripts/testRBAC.js"
+    "test:rbac": "node scripts/testRBAC.js",
+    "test:integration": "NODE_ENV=development node scripts/testIntegration.js",
+    "test:load": "NODE_ENV=development LOAD_TEST=true node scripts/testCodeExecutionLoad.js"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

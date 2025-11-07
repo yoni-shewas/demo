@@ -5,16 +5,12 @@ import executionQueue from '../services/executionQueue.js';
 
 const prisma = new PrismaClient();
 
-/**
- * Execute code using Judge0
- * POST /api/code/run
- */
+// POST /api/code/run
 export async function executeCode(req, res) {
   try {
     const userId = req.user.userId;
     const { language, sourceCode, input, options = {} } = req.body;
 
-    // Validation
     if (!language || !sourceCode) {
       return res.status(400).json({
         success: false,
@@ -22,36 +18,17 @@ export async function executeCode(req, res) {
       });
     }
 
-    // Log execution request
-    logger.info(`Code execution request from user ${req.user.email}`, {
-      language,
-      codeLength: sourceCode.length,
-      hasInput: !!input,
-      queueStatus: executionQueue.getStatus(),
-    });
+    logger.info(`Code execution: ${req.user.email} | ${language}`);
 
-    // Execute code through queue (max 100 concurrent, rest queued)
     const result = await executionQueue.enqueue(
       () => runCode(language, sourceCode, input, options),
       { language, userId, email: req.user.email }
     );
 
-    // Log execution result
-    if (result.success) {
-      logger.info(`Code execution successful for user ${req.user.email}`, {
-        language,
-        status: result.status.description,
-        executionTime: result.execution_time,
-        hasOutput: !!result.stdout,
-      });
-    } else {
-      logger.warn(`Code execution failed for user ${req.user.email}`, {
-        language,
-        error: result.error,
-      });
+    if (!result.success) {
+      logger.warn(`Code execution failed: ${req.user.email} | ${language}`);
     }
 
-    // Optionally store execution history in database
     try {
       await prisma.codeExecutionEngine.upsert({
         where: {
@@ -69,11 +46,9 @@ export async function executeCode(req, res) {
         },
       });
     } catch (dbError) {
-      // Non-critical error, just log it
-      logger.warn('Failed to update execution engine record:', dbError.message);
+      logger.warn('DB update failed:', dbError.message);
     }
 
-    // Add queue info to response headers
     const queueStats = executionQueue.getStats();
     res.set({
       'X-Queue-Running': queueStats.currentlyRunning.toString(),
@@ -100,15 +75,11 @@ export async function executeCode(req, res) {
   }
 }
 
-/**
- * Get supported programming languages
- * GET /api/code/languages
- */
+// GET /api/code/languages
 export async function getSupportedLanguagesList(req, res) {
   try {
     const languages = getSupportedLanguages();
     
-    // Format for better readability
     const formattedLanguages = Object.entries(languages).map(([name, id]) => ({
       name,
       id,
@@ -130,10 +101,7 @@ export async function getSupportedLanguagesList(req, res) {
   }
 }
 
-/**
- * Check Judge0 service health
- * GET /api/code/health
- */
+// GET /api/code/health
 export async function checkServiceHealth(req, res) {
   try {
     const isHealthy = await checkJudge0Health();
@@ -165,10 +133,7 @@ export async function checkServiceHealth(req, res) {
   }
 }
 
-/**
- * Get code execution examples
- * GET /api/code/examples
- */
+// GET /api/code/examples
 export async function getCodeExamples(req, res) {
   try {
     const examples = {
@@ -276,10 +241,7 @@ for (let i = 0; i < 10; i++) {
   }
 }
 
-/**
- * Get execution queue statistics
- * GET /api/code/queue-stats
- */
+// GET /api/code/queue-stats
 export async function getQueueStats(req, res) {
   try {
     const stats = executionQueue.getStats();
