@@ -585,6 +585,7 @@ export async function submitAssignment(req, res) {
           select: {
             title: true,
             dueDate: true,
+            submissionStatus: true,
           },
         },
         student: {
@@ -598,6 +599,12 @@ export async function submitAssignment(req, res) {
           },
         },
       },
+    });
+
+    // Update assignment submission status to COMPLETED
+    await prisma.assignment.update({
+      where: { id: assignmentId },
+      data: { submissionStatus: 'COMPLETED' },
     });
 
     // Add file URLs to response
@@ -615,6 +622,7 @@ export async function submitAssignment(req, res) {
       success: true,
       message: 'Assignment submitted successfully',
       submission: submissionWithUrls,
+      assignmentStatus: 'COMPLETED',
     });
   } catch (error) {
     logger.error('Submit assignment error:', error);
