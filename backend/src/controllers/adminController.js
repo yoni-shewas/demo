@@ -429,6 +429,7 @@ export async function getAllUsers(req, res) {
           id: true,
           username: true,
           email: true,
+          password: true,
           role: true,
           firstName: true,
           lastName: true,
@@ -470,6 +471,94 @@ export async function getAllUsers(req, res) {
     });
   } catch (error) {
     logger.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Update a user
+ * PUT /api/admin/users/:id
+ */
+export async function updateUser(req, res) {
+  try {
+    const { id } = req.params;
+    const { username, email, password, role, firstName, lastName } = req.body;
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check for duplicate username/email (excluding current user)
+    if (username || email) {
+      const duplicate = await prisma.user.findFirst({
+        where: {
+          AND: [
+            { id: { not: id } },
+            {
+              OR: [
+                ...(username ? [{ username }] : []),
+                ...(email ? [{ email }] : []),
+              ],
+            },
+          ],
+        },
+      });
+
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: 'Username or email already exists',
+        });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (role) updateData.role = role.toUpperCase();
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (password) {
+      updateData.password = await bcrypt.hash(password, SALT_ROUNDS);
+    }
+
+    // Update user
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+      },
+    });
+
+    logger.info(`Admin updated user: ${user.email} (${user.role})`);
+
+    res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      user,
+    });
+  } catch (error) {
+    logger.error('Update user error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

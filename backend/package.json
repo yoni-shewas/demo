@@ -9,10 +9,15 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "prisma:seed": "node prisma/seed.js",
+    "db:reset": "prisma migrate reset --force && node prisma/seed.js",
     "create-admin": "node scripts/createAdmin.js",
     "test:rbac": "node scripts/testRBAC.js",
     "test:integration": "NODE_ENV=development node scripts/testIntegration.js",
     "test:load": "NODE_ENV=development LOAD_TEST=true node scripts/testCodeExecutionLoad.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import {
   createUser,
+  updateUser,
   importUsersFromCSV,
   importUsersFromSQL,
   exportUsersToCSV,
@@ -44,6 +45,13 @@ router.post('/users', createUser);
  * @query   page, limit, role
  */
 router.get('/users', getAllUsers);
+
+/**
+ * @route   PUT /api/admin/users/:id
+ * @desc    Update a user
+ * @access  Admin only
+ */
+router.put('/users/:id', updateUser);
 
 /**
  * @route   DELETE /api/admin/users/:id
