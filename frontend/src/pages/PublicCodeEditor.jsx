@@ -1,49 +1,72 @@
-import { useState } from 'react';
-import { Play, Copy, Download, Share2, Settings } from 'lucide-react';
-import Editor from '@monaco-editor/react';
-import axios from 'axios';
+import { useState } from "react";
+import { Play, Copy, Download, Share2, Settings } from "lucide-react";
+import Editor from "@monaco-editor/react";
+import axios from "axios";
 
 const LANGUAGES = {
-  javascript: { id: 63, name: 'JavaScript', defaultCode: 'console.log("Hello World!");' },
-  python: { id: 71, name: 'Python', defaultCode: 'print("Hello World!")' },
-  cpp: { id: 54, name: 'C++', defaultCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello World!" << endl;\n    return 0;\n}' },
-  java: { id: 62, name: 'Java', defaultCode: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello World!");\n    }\n}' },
-  c: { id: 50, name: 'C', defaultCode: '#include <stdio.h>\n\nint main() {\n    printf("Hello World!\\n");\n    return 0;\n}' },
+  javascript: {
+    id: 63,
+    name: "JavaScript",
+    defaultCode: 'console.log("Hello World!");',
+  },
+  python: { id: 71, name: "Python", defaultCode: 'print("Hello World!")' },
+  cpp: {
+    id: 54,
+    name: "C++",
+    defaultCode:
+      '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello World!" << endl;\n    return 0;\n}',
+  },
+  java: {
+    id: 62,
+    name: "Java",
+    defaultCode:
+      'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello World!");\n    }\n}',
+  },
+  c: {
+    id: 50,
+    name: "C",
+    defaultCode:
+      '#include <stdio.h>\n\nint main() {\n    printf("Hello World!\\n");\n    return 0;\n}',
+  },
 };
 
 const PublicCodeEditor = () => {
-  const [language, setLanguage] = useState('javascript');
+  const [language, setLanguage] = useState("javascript");
   const [code, setCode] = useState(LANGUAGES.javascript.defaultCode);
-  const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
+  const [input, setInput] = useState("");
+  const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [executionTime, setExecutionTime] = useState(null);
-  const [theme, setTheme] = useState('vs-dark');
+  const [theme, setTheme] = useState("vs-dark");
 
   const handleLanguageChange = (newLang) => {
     setLanguage(newLang);
     setCode(LANGUAGES[newLang].defaultCode);
-    setOutput('');
+    setOutput("");
     setExecutionTime(null);
   };
 
   const handleRunCode = async () => {
     setIsRunning(true);
-    setOutput('Running code...');
-    
+    setOutput("Running code...");
+
     try {
       const startTime = Date.now();
-      
+
       // Direct call to Judge0 API (you can also proxy through your backend)
-      const response = await axios.post('http://localhost:3000/api/code/run', {
-        language: language,
-        sourceCode: code,
-        input: input || undefined
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
+      const response = await axios.post(
+        "http://localhost:3000/api/code/run",
+        {
+          language: language,
+          sourceCode: code,
+          input: input || undefined,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
 
       const endTime = Date.now();
       const time = ((endTime - startTime) / 1000).toFixed(2);
@@ -51,28 +74,28 @@ const PublicCodeEditor = () => {
 
       if (response.data.success) {
         const result = response.data.result;
-        let outputText = '';
-        
+        let outputText = "";
+
         if (result.stdout) {
           outputText += result.stdout;
         }
         if (result.stderr) {
-          outputText += '\n[Error]\n' + result.stderr;
+          outputText += "\n[Error]\n" + result.stderr;
         }
         if (result.compile_output) {
-          outputText += '\n[Compilation]\n' + result.compile_output;
+          outputText += "\n[Compilation]\n" + result.compile_output;
         }
         if (result.message) {
-          outputText += '\n[Status]\n' + result.message;
+          outputText += "\n[Status]\n" + result.message;
         }
-        
-        setOutput(outputText || 'No output');
+
+        setOutput(outputText || "No output");
       } else {
-        setOutput('Error: ' + response.data.error);
+        setOutput("Error: " + response.data.error);
       }
     } catch (error) {
-      console.error('Execution error:', error);
-      setOutput('Error: ' + (error.response?.data?.error || error.message));
+      console.error("Execution error:", error);
+      setOutput("Error: " + (error.response?.data?.error || error.message));
       setExecutionTime(null);
     } finally {
       setIsRunning(false);
@@ -81,21 +104,21 @@ const PublicCodeEditor = () => {
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code);
-    alert('Code copied to clipboard!');
+    alert("Code copied to clipboard!");
   };
 
   const handleDownloadCode = () => {
     const ext = {
-      javascript: 'js',
-      python: 'py',
-      cpp: 'cpp',
-      java: 'java',
-      c: 'c'
+      javascript: "js",
+      python: "py",
+      cpp: "cpp",
+      java: "java",
+      c: "c",
     }[language];
-    
-    const blob = new Blob([code], { type: 'text/plain' });
+
+    const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `code.${ext}`;
     a.click();
@@ -106,12 +129,12 @@ const PublicCodeEditor = () => {
     // Encode code to base64 for URL sharing
     const encoded = btoa(unescape(encodeURIComponent(code)));
     const shareUrl = `${window.location.origin}/code?lang=${language}&code=${encoded}`;
-    
+
     if (navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl);
-      alert('Share link copied to clipboard!');
+      alert("Share link copied to clipboard!");
     } else {
-      prompt('Copy this link:', shareUrl);
+      prompt("Copy this link:", shareUrl);
     }
   };
 
@@ -126,7 +149,7 @@ const PublicCodeEditor = () => {
               Public Beta
             </span>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {/* Language Selector */}
             <select
@@ -160,7 +183,7 @@ const PublicCodeEditor = () => {
             >
               <Copy className="h-5 w-5" />
             </button>
-            
+
             <button
               onClick={handleDownloadCode}
               className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -168,7 +191,7 @@ const PublicCodeEditor = () => {
             >
               <Download className="h-5 w-5" />
             </button>
-            
+
             <button
               onClick={handleShareCode}
               className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
@@ -192,22 +215,22 @@ const PublicCodeEditor = () => {
               className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="h-4 w-4" />
-              <span>{isRunning ? 'Running...' : 'Run Code'}</span>
+              <span>{isRunning ? "Running..." : "Run Code"}</span>
             </button>
           </div>
-          
+
           <div className="flex-1">
             <Editor
               height="100%"
               language={language}
               value={code}
-              onChange={(value) => setCode(value || '')}
+              onChange={(value) => setCode(value || "")}
               theme={theme}
               options={{
                 fontSize: 14,
                 minimap: { enabled: true },
                 scrollBeyondLastLine: false,
-                wordWrap: 'on',
+                wordWrap: "on",
                 automaticLayout: true,
                 tabSize: 2,
               }}
@@ -241,7 +264,7 @@ const PublicCodeEditor = () => {
               )}
             </div>
             <div className="flex-1 bg-gray-900 text-gray-200 p-4 font-mono text-sm overflow-auto whitespace-pre-wrap">
-              {output || 'Run your code to see output here...'}
+              {output || "Run your code to see output here..."}
             </div>
           </div>
         </div>
@@ -258,7 +281,12 @@ const PublicCodeEditor = () => {
             </a>
           </div>
           <div className="flex items-center space-x-4">
-            <span>Supports: {Object.values(LANGUAGES).map(l => l.name).join(', ')}</span>
+            <span>
+              Supports:{" "}
+              {Object.values(LANGUAGES)
+                .map((l) => l.name)
+                .join(", ")}
+            </span>
           </div>
         </div>
       </div>
