@@ -116,12 +116,12 @@ export async function getSections(req, res) {
 /**
  * Create an assignment for a section
  * POST /api/instructor/assignments
- * Body: { title, description, starterCode, dueDate, sectionId }
+ * Body: { title, description, starterCode, solutionCode, testCases, startDate, dueDate, sectionId }
  */
 export async function createAssignment(req, res) {
   try {
     const userId = req.user.userId;
-    const { title, description, starterCode, dueDate, sectionId } = req.body;
+    const { title, description, starterCode, solutionCode, testCases, hiddenTestCases, startDate, dueDate, sectionId } = req.body;
 
     // Validation
     if (!title || !sectionId) {
@@ -148,12 +148,54 @@ export async function createAssignment(req, res) {
       });
     }
 
+    // Parse JSON strings if provided
+    let parsedStarterCode = null;
+    let parsedSolutionCode = null;
+    let parsedTestCases = null;
+
+    if (starterCode) {
+      try {
+        parsedStarterCode = typeof starterCode === 'string' ? JSON.parse(starterCode) : starterCode;
+      } catch (e) {
+        parsedStarterCode = starterCode;
+      }
+    }
+
+    if (solutionCode) {
+      try {
+        parsedSolutionCode = typeof solutionCode === 'string' ? JSON.parse(solutionCode) : solutionCode;
+      } catch (e) {
+        parsedSolutionCode = solutionCode;
+      }
+    }
+
+    if (testCases) {
+      try {
+        parsedTestCases = typeof testCases === 'string' ? JSON.parse(testCases) : testCases;
+      } catch (e) {
+        parsedTestCases = testCases;
+      }
+    }
+
+    let parsedHiddenTestCases = null;
+    if (hiddenTestCases) {
+      try {
+        parsedHiddenTestCases = typeof hiddenTestCases === 'string' ? JSON.parse(hiddenTestCases) : hiddenTestCases;
+      } catch (e) {
+        parsedHiddenTestCases = hiddenTestCases;
+      }
+    }
+
     // Create assignment
     const assignment = await prisma.assignment.create({
       data: {
         title,
         description,
-        starterCode: starterCode || null,
+        starterCode: parsedStarterCode,
+        solutionCode: parsedSolutionCode,
+        testCases: parsedTestCases,
+        hiddenTestCases: parsedHiddenTestCases,
+        startDate: startDate ? new Date(startDate) : null,
         dueDate: dueDate ? new Date(dueDate) : null,
         sectionId,
       },
@@ -348,7 +390,7 @@ export async function updateAssignment(req, res) {
   try {
     const userId = req.user.userId;
     const { assignmentId } = req.params;
-    const { title, description, starterCode, dueDate } = req.body;
+    const { title, description, starterCode, solutionCode, testCases, hiddenTestCases, startDate, dueDate } = req.body;
 
     // Verify instructor owns this assignment
     const instructor = await prisma.instructor.findUnique({
@@ -381,15 +423,50 @@ export async function updateAssignment(req, res) {
       });
     }
 
+    // Parse JSON strings if provided
+    const updateData = {
+      title,
+      description,
+      startDate: startDate ? new Date(startDate) : null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+    };
+
+    if (starterCode !== undefined) {
+      try {
+        updateData.starterCode = typeof starterCode === 'string' ? JSON.parse(starterCode) : starterCode;
+      } catch (e) {
+        updateData.starterCode = starterCode;
+      }
+    }
+
+    if (solutionCode !== undefined) {
+      try {
+        updateData.solutionCode = typeof solutionCode === 'string' ? JSON.parse(solutionCode) : solutionCode;
+      } catch (e) {
+        updateData.solutionCode = solutionCode;
+      }
+    }
+
+    if (testCases !== undefined) {
+      try {
+        updateData.testCases = typeof testCases === 'string' ? JSON.parse(testCases) : testCases;
+      } catch (e) {
+        updateData.testCases = testCases;
+      }
+    }
+
+    if (hiddenTestCases !== undefined) {
+      try {
+        updateData.hiddenTestCases = typeof hiddenTestCases === 'string' ? JSON.parse(hiddenTestCases) : hiddenTestCases;
+      } catch (e) {
+        updateData.hiddenTestCases = hiddenTestCases;
+      }
+    }
+
     // Update assignment
     const updated = await prisma.assignment.update({
       where: { id: assignmentId },
-      data: {
-        title,
-        description,
-        starterCode,
-        dueDate: dueDate ? new Date(dueDate) : null,
-      },
+      data: updateData,
     });
 
     logger.info(

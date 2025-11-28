@@ -52,11 +52,13 @@ const Lessons = () => {
       }
 
       if (sectionsRes.status === 'fulfilled') {
-        setSections(sectionsRes.value.data?.sections || sectionsRes.value.data || []);
+        const sectionData = sectionsRes.value.data?.sections || sectionsRes.value.data || [];
+        setSections(Array.isArray(sectionData) ? sectionData : []);
       }
 
       if (profileRes.status === 'fulfilled' && profileRes.value.sections) {
-        setSections(profileRes.value.sections);
+        const profileSections = profileRes.value.sections;
+        setSections(Array.isArray(profileSections) ? profileSections : []);
       }
 
       toast.success('Lessons loaded successfully');

@@ -82,7 +82,7 @@ const InstructorDashboard = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Instructor Dashboard</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Welcome back, {user?.firstName || 'Instructor'}. Manage your lessons and assignments.
+          Welcome back, {user?.firstName || 'Instructor'}. Manage your semester sections, lessons, and assignments.
         </p>
       </div>
 

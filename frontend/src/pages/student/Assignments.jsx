@@ -23,11 +23,21 @@ const StudentAssignments = () => {
       ]);
 
       if (assignmentsData.status === 'fulfilled') {
-        setAssignments(assignmentsData.value.assignments || assignmentsData.value || []);
+        const data = assignmentsData.value;
+        // Backend returns { success: true, data: [...] }
+        const assignmentsArray = Array.isArray(data?.data?.data) ? data.data.data : 
+                                  Array.isArray(data?.data) ? data.data : 
+                                  Array.isArray(data?.assignments) ? data.assignments : 
+                                  Array.isArray(data) ? data : [];
+        setAssignments(assignmentsArray);
       }
 
       if (submissionsData.status === 'fulfilled') {
-        setSubmissions(submissionsData.value.submissions || submissionsData.value || []);
+        const data = submissionsData.value;
+        const submissionsArray = Array.isArray(data?.data) ? data.data : 
+                                 Array.isArray(data?.submissions) ? data.submissions : 
+                                 Array.isArray(data) ? data : [];
+        setSubmissions(submissionsArray);
       }
 
       toast.success('Assignments loaded');
@@ -66,7 +76,7 @@ const StudentAssignments = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-hidden">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Assignments</h1>
         <p className="text-sm text-gray-600 mt-1">View and submit your assignments</p>

@@ -85,6 +85,7 @@ model Batch {
 model Section {
   id           String   @id @default(uuid())
   name         String
+  semester     String?  // Semester I, II, or III
   batchId      String
   instructorId String
   batch        Batch      @relation(fields: [batchId], references: [id])
@@ -103,6 +104,10 @@ model Assignment {
   title       String
   description String?
   starterCode Json?
+  solutionCode Json?  // Correct solution code provided by instructor
+  testCases   Json?    // Public test cases visible to students
+  hiddenTestCases Json?  // Hidden test cases only for instructor validation
+  startDate   DateTime?
   dueDate     DateTime?
   // Submission status for this assignment
   submissionStatus SubmissionStatus @default(PENDING)

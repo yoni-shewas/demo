@@ -13,10 +13,9 @@ const Batches = () => {
   const [selectedSection, setSelectedSection] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
-    courseCode: '',
-    term: '',
-    year: new Date().getFullYear(),
+    semester: '',
+    batchId: '',
+    instructorId: '',
   });
   const [assignData, setAssignData] = useState({
     instructorId: '',
@@ -56,14 +55,13 @@ const Batches = () => {
     e.preventDefault();
     try {
       await apiClient.post('/api/admin/sections', formData);
-      toast.success('Section/Batch created successfully!');
+      toast.success('Section created successfully!');
       setShowCreateModal(false);
       setFormData({
         name: '',
-        description: '',
-        courseCode: '',
-        term: '',
-        year: new Date().getFullYear(),
+        semester: '',
+        batchId: '',
+        instructorId: '',
       });
       loadData();
     } catch (error) {
@@ -137,9 +135,9 @@ const Batches = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Batches & Sections</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Ethiopian Academic Sections</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Manage course sections and assign instructors/students
+            Manage RCD/ECD batch sections (Semesters I, II, III) and assign instructors
           </p>
         </div>
         <button
@@ -247,9 +245,18 @@ const Batches = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900">{section.name}</h3>
-                      {section.courseCode && (
-                        <p className="text-sm text-gray-600 mt-1">{section.courseCode}</p>
-                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        {section.semester && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                            Semester {section.semester}
+                          </span>
+                        )}
+                        {section.batch?.name && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 font-medium">
+                            {section.batch.name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
@@ -269,21 +276,14 @@ const Batches = () => {
                     </div>
                   </div>
 
-                  {section.description && (
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {section.description}
-                    </p>
-                  )}
-
-                  <div className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                        {section.term} {section.year}
-                      </p>
+                  <div className="flex items-center justify-between text-sm mt-4">
+                    <div className="text-gray-600">
+                      <p className="text-xs">Instructor:</p>
+                      <p className="font-medium">{section.instructor?.user?.username || 'Not assigned'}</p>
                     </div>
                     <div className="flex items-center space-x-2 text-gray-600">
                       <Users className="h-4 w-4" />
-                      <span>{section.enrollmentCount || 0} students</span>
+                      <span>{section.students?.length || 0} students</span>
                     </div>
                   </div>
                 </div>
@@ -310,7 +310,7 @@ const Batches = () => {
             <School className="h-16 w-16 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Sections Yet</h3>
             <p className="text-sm text-gray-600 mb-6">
-              Create your first section to organize courses
+              Create semester sections for RCD/ECD batches (Semesters I, II, III)
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -327,7 +327,7 @@ const Batches = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Section/Batch</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Section</h2>
             <form onSubmit={handleCreateSection} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

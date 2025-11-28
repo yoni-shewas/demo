@@ -17,8 +17,13 @@ const Assignments = () => {
     title: '',
     description: '',
     sectionId: '',
+    startDate: '',
     dueDate: '',
     maxPoints: 100,
+    starterCode: '',
+    solutionCode: '',
+    testCases: '',
+    hiddenTestCases: '',
   });
 
   useEffect(() => {
@@ -43,11 +48,13 @@ const Assignments = () => {
       }
 
       if (sectionsRes.status === 'fulfilled') {
-        setSections(sectionsRes.value.data?.sections || sectionsRes.value.data || []);
+        const sectionData = sectionsRes.value.data?.sections || sectionsRes.value.data || [];
+        setSections(Array.isArray(sectionData) ? sectionData : []);
       }
 
       if (profileRes.status === 'fulfilled' && profileRes.value.sections) {
-        setSections(profileRes.value.sections);
+        const profileSections = profileRes.value.sections;
+        setSections(Array.isArray(profileSections) ? profileSections : []);
       }
 
       toast.success('Assignments loaded successfully');
@@ -74,7 +81,7 @@ const Assignments = () => {
       await instructorService.createAssignment(formData);
       toast.success('Assignment created successfully!');
       setShowCreateModal(false);
-      setFormData({ title: '', description: '', sectionId: '', dueDate: '', maxPoints: 100 });
+      setFormData({ title: '', description: '', sectionId: '', startDate: '', dueDate: '', maxPoints: 100, starterCode: '', solutionCode: '', testCases: '', hiddenTestCases: '' });
       loadData();
     } catch (error) {
       console.error('Error creating assignment:', error);
@@ -90,7 +97,7 @@ const Assignments = () => {
       toast.success('Assignment updated successfully!');
       setShowEditModal(false);
       setSelectedAssignment(null);
-      setFormData({ title: '', description: '', sectionId: '', dueDate: '', maxPoints: 100 });
+      setFormData({ title: '', description: '', sectionId: '', startDate: '', dueDate: '', maxPoints: 100, starterCode: '', solutionCode: '', testCases: '', hiddenTestCases: '' });
       loadData();
     } catch (error) {
       console.error('Error updating assignment:', error);
@@ -117,8 +124,13 @@ const Assignments = () => {
       title: assignment.title,
       description: assignment.description || '',
       sectionId: assignment.sectionId || '',
+      startDate: assignment.startDate ? new Date(assignment.startDate).toISOString().slice(0, 16) : '',
       dueDate: assignment.dueDate ? new Date(assignment.dueDate).toISOString().slice(0, 16) : '',
       maxPoints: assignment.maxPoints || 100,
+      starterCode: typeof assignment.starterCode === 'object' ? JSON.stringify(assignment.starterCode, null, 2) : assignment.starterCode || '',
+      solutionCode: typeof assignment.solutionCode === 'object' ? JSON.stringify(assignment.solutionCode, null, 2) : assignment.solutionCode || '',
+      testCases: typeof assignment.testCases === 'object' ? JSON.stringify(assignment.testCases, null, 2) : assignment.testCases || '',
+      hiddenTestCases: typeof assignment.hiddenTestCases === 'object' ? JSON.stringify(assignment.hiddenTestCases, null, 2) : assignment.hiddenTestCases || '',
     });
     setShowEditModal(true);
   };
@@ -142,7 +154,7 @@ const Assignments = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -263,8 +275,8 @@ const Assignments = () => {
 
       {/* Create/Edit Modal */}
       {(showCreateModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] my-8 overflow-hidden flex flex-col">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
                 {showCreateModal ? 'Create New Assignment' : 'Edit Assignment'}
@@ -274,7 +286,7 @@ const Assignments = () => {
                   setShowCreateModal(false);
                   setShowEditModal(false);
                   setSelectedAssignment(null);
-                  setFormData({ title: '', description: '', sectionId: '', dueDate: '', maxPoints: 100 });
+                  setFormData({ title: '', description: '', sectionId: '', startDate: '', dueDate: '', maxPoints: 100, starterCode: '', solutionCode: '', testCases: '', hiddenTestCases: '' });
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -282,7 +294,7 @@ const Assignments = () => {
               </button>
             </div>
 
-            <form onSubmit={showCreateModal ? handleCreateAssignment : handleUpdateAssignment} className="p-6 space-y-4">
+            <form onSubmit={showCreateModal ? handleCreateAssignment : handleUpdateAssignment} className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Assignment Title *
@@ -328,7 +340,18 @@ const Assignments = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Due Date & Time *
@@ -353,6 +376,73 @@ const Assignments = () => {
                     min="1"
                     required
                   />
+                </div>
+              </div>
+
+              {/* Code Sections */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Code & Testing</h3>
+                
+                <div className="space-y-4">
+                  {/* Starter Code */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Starter Code (JSON format)
+                      <span className="text-xs text-gray-500 ml-2">Example: {"{ \"python\": \"def solve():\\n    pass\" }"}</span>
+                    </label>
+                    <textarea
+                      value={formData.starterCode}
+                      onChange={(e) => setFormData({ ...formData, starterCode: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-black focus:border-transparent"
+                      placeholder='{"python": "def solve():\n    pass", "javascript": "function solve() {\n    // your code\n}"}'
+                      rows="4"
+                    />
+                  </div>
+
+                  {/* Solution Code */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Solution Code (JSON format) - Correct implementation
+                      <span className="text-xs text-gray-500 ml-2">This should pass all test cases</span>
+                    </label>
+                    <textarea
+                      value={formData.solutionCode}
+                      onChange={(e) => setFormData({ ...formData, solutionCode: e.target.value })}
+                      className="w-full border border-green-300 bg-green-50 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder='{"python": "def solve():\n    return sum([1, 2, 3])", "javascript": "function solve() {\n    return [1,2,3].reduce((a,b) => a+b, 0);\n}"}'
+                      rows="5"
+                    />
+                  </div>
+
+                  {/* Test Cases */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Public Test Cases (JSON format)
+                      <span className="text-xs text-gray-500 ml-2">Visible to students for testing</span>
+                    </label>
+                    <textarea
+                      value={formData.testCases}
+                      onChange={(e) => setFormData({ ...formData, testCases: e.target.value })}
+                      className="w-full border border-blue-300 bg-blue-50 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder='[{"input": "3", "expected": "6", "description": "Sum of 1+2+3"}, {"input": "5", "expected": "15"}]'
+                      rows="4"
+                    />
+                  </div>
+
+                  {/* Hidden Test Cases */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hidden Test Cases (JSON format)
+                      <span className="text-xs text-gray-500 ml-2">Only for instructor grading - not visible to students</span>
+                    </label>
+                    <textarea
+                      value={formData.hiddenTestCases}
+                      onChange={(e) => setFormData({ ...formData, hiddenTestCases: e.target.value })}
+                      className="w-full border border-purple-300 bg-purple-50 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder='[{"input": "100", "expected": "5050", "description": "Large number test"}]'
+                      rows="4"
+                    />
+                  </div>
                 </div>
               </div>
 

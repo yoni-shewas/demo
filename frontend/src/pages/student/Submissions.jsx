@@ -21,11 +21,21 @@ const StudentSubmissions = () => {
       ]);
 
       if (submissionsData.status === 'fulfilled') {
-        setSubmissions(submissionsData.value.submissions || submissionsData.value || []);
+        const data = submissionsData.value;
+        const submissionsArray = Array.isArray(data?.data) ? data.data : 
+                                 Array.isArray(data?.submissions) ? data.submissions : 
+                                 Array.isArray(data) ? data : [];
+        setSubmissions(submissionsArray);
       }
 
       if (assignmentsData.status === 'fulfilled') {
-        setAssignments(assignmentsData.value.assignments || assignmentsData.value || []);
+        const data = assignmentsData.value;
+        // Backend returns { success: true, data: [...] }
+        const assignmentsArray = Array.isArray(data?.data?.data) ? data.data.data : 
+                                 Array.isArray(data?.data) ? data.data : 
+                                 Array.isArray(data?.assignments) ? data.assignments : 
+                                 Array.isArray(data) ? data : [];
+        setAssignments(assignmentsArray);
       }
 
       toast.success('Submissions loaded');
@@ -57,7 +67,7 @@ const StudentSubmissions = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-hidden">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">My Submissions</h1>
         <p className="text-sm text-gray-600 mt-1">View your submission status and grades</p>
@@ -104,28 +114,28 @@ const StudentSubmissions = () => {
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-w-full">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Feedback</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignment</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feedback</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {submissions.map((submission) => (
                 <tr key={submission.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4">
                     <div className="text-sm font-medium text-gray-900">{getAssignmentTitle(submission.assignmentId)}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{new Date(submission.submittedAt).toLocaleDateString()}</div>
                     <div className="text-xs text-gray-500">{new Date(submission.submittedAt).toLocaleTimeString()}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     {submission.grade !== null && submission.grade !== undefined ? (
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                         <CheckCircle className="h-3 w-3 mr-1" /> Graded
@@ -136,7 +146,7 @@ const StudentSubmissions = () => {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     {submission.grade !== null && submission.grade !== undefined ? (
                       <div className="flex items-center">
                         <Award className="h-4 w-4 text-yellow-500 mr-1" />
@@ -148,7 +158,7 @@ const StudentSubmissions = () => {
                       <span className="text-sm text-gray-500">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4 max-w-md">
                     {submission.feedback ? (
                       <div className="flex items-start space-x-2 max-w-md">
                         <MessageSquare className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />

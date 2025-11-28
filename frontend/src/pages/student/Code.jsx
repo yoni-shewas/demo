@@ -47,7 +47,10 @@ const StudentCode = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [assignments, setAssignments] = useState([]);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [editorWidth, setEditorWidth] = useState(50); // percentage
+  const [isResizing, setIsResizing] = useState(false);
   const editorRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     loadAssignments();
@@ -150,83 +153,104 @@ const StudentCode = () => {
     return assignments.filter((a) => new Date(a.dueDate) > new Date());
   };
 
+  const handleMouseDown = () => {
+    setIsResizing(true);
+  };
+
+  const handleMouseUp = () => {
+    setIsResizing(false);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isResizing || !containerRef.current) return;
+    
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    
+    if (newWidth > 20 && newWidth < 80) {
+      setEditorWidth(newWidth);
+    }
+  };
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isResizing]);
+
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col space-y-4">
+    <div className="h-screen flex flex-col bg-gray-900 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Code Workspace</h1>
-          <p className="text-sm text-gray-600 mt-1">Write, run, and submit your code</p>
-        </div>
-        <div className="flex items-center space-x-3">
+      <div className="bg-gray-800 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
+        <h1 className="text-white font-semibold text-sm">Code Workspace</h1>
+        <div className="flex items-center space-x-2">
           <button
             onClick={handleRunCode}
             disabled={isRunning}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-1.5 rounded hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
           >
             {isRunning ? <Loader className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             <span>{isRunning ? 'Running...' : 'Run Code'}</span>
           </button>
           <button
             onClick={handleSaveSubmission}
-            className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-1.5 rounded hover:bg-green-700 transition-colors text-sm"
           >
             <Save className="h-4 w-4" />
-            <span>Save Submission</span>
+            <span>Submit</span>
           </button>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Programming Language
-            </label>
-            <select
-              value={language}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-            >
-              <option value="python">Python</option>
-              <option value="cpp">C++</option>
-              <option value="java">Java</option>
-              <option value="javascript">JavaScript</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assignment (Optional)
-            </label>
-            <select
-              value={selectedAssignment || ''}
-              onChange={(e) => setSelectedAssignment(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-            >
-              <option value="">Select Assignment</option>
-              {getActiveAssignments().map((assignment) => (
-                <option key={assignment.id} value={assignment.id}>
-                  {assignment.title} - Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="bg-gray-800 px-4 py-2 flex items-center justify-between border-b border-gray-700">
+        <div className="flex items-center space-x-4">
+          <select
+            value={selectedAssignment || ''}
+            onChange={(e) => setSelectedAssignment(e.target.value)}
+            className="bg-gray-700 text-white text-sm border-none rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select Assignment</option>
+            {getActiveAssignments().map((assignment) => (
+              <option key={assignment.id} value={assignment.id}>
+                {assignment.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center space-x-3">
+          <select
+            value={language}
+            onChange={(e) => handleLanguageChange(e.target.value)}
+            className="bg-gray-700 text-white text-sm border-none rounded px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+            <option value="javascript">JavaScript</option>
+          </select>
         </div>
       </div>
 
       {/* Editor and Output */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+      <div ref={containerRef} className="flex-1 flex gap-0 min-h-0 overflow-hidden" style={{ userSelect: isResizing ? 'none' : 'auto' }}>
         {/* Code Editor */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+        <div className="bg-gray-900 border-r border-gray-700 overflow-hidden flex flex-col" style={{ width: `${editorWidth}%` }}>
+          <div className="px-4 py-2 border-b border-gray-700 flex items-center justify-between bg-gray-800">
             <div className="flex items-center space-x-2">
-              <Code2 className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-900">Code Editor</span>
+              <Code2 className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-medium text-gray-200">Code Editor</span>
             </div>
-            <span className="text-xs text-gray-500 uppercase">{language}</span>
+            <span className="text-xs text-gray-400 uppercase">{language}</span>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <Editor
               height="100%"
               language={language === 'cpp' ? 'cpp' : language}
@@ -248,22 +272,29 @@ const StudentCode = () => {
           </div>
         </div>
 
+        {/* Resize Handle */}
+        <div
+          className="w-1 bg-gray-700 hover:bg-blue-500 cursor-col-resize transition-colors"
+          onMouseDown={handleMouseDown}
+          style={{ userSelect: 'none' }}
+        />
+
         {/* Output Panel */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center space-x-2 bg-gray-50">
-            <FileText className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-900">Output</span>
+        <div className="bg-gray-900 overflow-hidden flex flex-col" style={{ width: `${100 - editorWidth}%` }}>
+          <div className="px-4 py-2 border-b border-gray-700 flex items-center space-x-2 bg-gray-800">
+            <FileText className="h-4 w-4 text-gray-400" />
+            <span className="text-sm font-medium text-gray-200">Output</span>
           </div>
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-gray-900">
             {output ? (
-              <pre className="p-4 font-mono text-sm whitespace-pre-wrap text-gray-900">
+              <pre className="p-4 font-mono text-sm whitespace-pre-wrap text-gray-100">
                 {output}
               </pre>
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500">
                 <div className="text-center">
-                  <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p className="text-sm">Run your code to see output here</p>
+                  <FileText className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                  <p className="text-sm text-gray-400">Run your code to see output here</p>
                 </div>
               </div>
             )}
@@ -271,13 +302,6 @@ const StudentCode = () => {
         </div>
       </div>
 
-      {/* Quick Tips */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>💡 Tips:</strong> Write your code in the editor, click "Run Code" to test it, 
-          and use "Save Submission" to submit for an assignment. Select an assignment from the dropdown above.
-        </p>
-      </div>
     </div>
   );
 };

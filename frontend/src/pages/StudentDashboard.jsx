@@ -10,6 +10,7 @@ const StudentDashboard = () => {
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [lessons, setLessons] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,10 +20,11 @@ const StudentDashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [assignmentsData, submissionsData, lessonsData] = await Promise.allSettled([
+      const [assignmentsData, submissionsData, lessonsData, profileData] = await Promise.allSettled([
         studentService.getAssignments(),
         studentService.getSubmissions(),
         studentService.getLessons(),
+        studentService.getProfile(),
       ]);
 
       if (assignmentsData.status === 'fulfilled') {
@@ -38,6 +40,10 @@ const StudentDashboard = () => {
       if (lessonsData.status === 'fulfilled') {
         const data = lessonsData.value?.data || lessonsData.value?.lessons || lessonsData.value || [];
         setLessons(Array.isArray(data) ? data : []);
+      }
+
+      if (profileData.status === 'fulfilled') {
+        setProfile(profileData.value);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -92,10 +98,23 @@ const StudentDashboard = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Welcome back, {user?.firstName || 'Student'}. Here's your progress overview.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Welcome back, {user?.firstName || 'Student'}. Here's your progress overview.
+            </p>
+          </div>
+          {profile?.studentId && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+              <p className="text-xs text-blue-600 font-medium">Student ID</p>
+              <p className="text-lg font-bold text-blue-900">{profile.studentId}</p>
+              {profile?.section?.semester && (
+                <p className="text-xs text-blue-700 mt-0.5">Semester {profile.section.semester}</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}

@@ -49,7 +49,7 @@ const AdminDashboard = () => {
 
   const quickActions = [
     { name: 'Manage Users', path: '/admin/users', icon: Users, description: 'Add, edit, and manage all users', color: 'bg-blue-500' },
-    { name: 'Manage Batches', path: '/admin/batches', icon: School, description: 'Create sections and assign users', color: 'bg-green-500' },
+    { name: 'Manage Batches & Sections', path: '/admin/batches', icon: School, description: 'RCD/ECD batches and semester sections', color: 'bg-green-500' },
     { name: 'View Lessons', path: '/admin/lessons', icon: BookOpen, description: 'Browse all instructor materials', color: 'bg-purple-500' },
   ];
 
@@ -91,7 +91,7 @@ const AdminDashboard = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Admin Control Panel</h1>
         <p className="text-gray-600 mt-2">
-          Welcome back, {user?.firstName || 'Admin'}. Manage your CodeLan LMS system.
+          Welcome back, {user?.firstName || 'Admin'}. Manage your CodeLan Ethiopian Academic System.
         </p>
       </div>
 
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
           trend="+8% from last month"
         />
         <StatCard
-          title="Sections/Batches"
+          title="Sections"
           value={sections.length}
           icon={School}
           color="bg-gradient-to-br from-indigo-500 to-indigo-600"
@@ -184,7 +184,7 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-gray-900">Active Sections</p>
-                <p className="text-xs text-gray-600 mt-1">Course batches</p>
+                <p className="text-xs text-gray-600 mt-1">Semester I, II, III sections</p>
               </div>
               <div className="text-2xl font-bold text-gray-900">{sections.length}</div>
             </div>

@@ -118,7 +118,7 @@ const Submissions = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-hidden">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Student Submissions</h1>
@@ -205,7 +205,7 @@ const Submissions = () => {
 
       {/* Submissions Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-w-full">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -323,8 +323,8 @@ const Submissions = () => {
 
       {/* Grading Modal */}
       {gradingSubmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] my-8 overflow-hidden flex flex-col">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
               <h2 className="text-xl font-bold text-gray-900">Grade Submission</h2>
               <p className="text-sm text-gray-600 mt-1">
@@ -333,7 +333,7 @@ const Submissions = () => {
               </p>
             </div>
 
-            <form onSubmit={handleGradeSubmission} className="p-6 space-y-4">
+            <form onSubmit={handleGradeSubmission} className="p-6 space-y-4 overflow-y-auto">
               {/* Submission Info */}
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -393,7 +393,7 @@ const Submissions = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Submitted Code
                   </label>
-                  <div className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-x-auto">
+                  <div className="bg-gray-900 text-gray-100 rounded-lg p-4 overflow-auto max-h-96">
                     <pre className="text-sm">
                       <code>{gradingSubmission.submittedCode.code || 'No code submitted'}</code>
                     </pre>
