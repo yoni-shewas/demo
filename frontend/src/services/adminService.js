@@ -96,6 +96,11 @@ export const getAllSections = async () => {
   return response.data;
 };
 
+export const getSectionById = async (sectionId) => {
+  const response = await apiClient.get(`/api/admin/sections/${sectionId}`);
+  return response.data;
+};
+
 export const createSection = async (sectionData) => {
   const response = await apiClient.post('/api/admin/sections', sectionData);
   return response.data;
@@ -111,9 +116,43 @@ export const deleteSection = async (sectionId) => {
   return response.data;
 };
 
+export const assignUsersToSection = async (sectionId, data) => {
+  const response = await apiClient.post(`/api/admin/sections/${sectionId}/assign`, data);
+  return response.data;
+};
+
+export const removeInstructorFromSection = async (sectionId) => {
+  const response = await apiClient.delete(`/api/admin/sections/${sectionId}/instructor`);
+  return response.data;
+};
+
+export const removeStudentsFromSection = async (sectionId, studentIds) => {
+  const response = await apiClient.post(`/api/admin/sections/${sectionId}/remove-students`, {
+    studentIds,
+  });
+  return response.data;
+};
+
+export const getAvailableInstructors = async () => {
+  const response = await apiClient.get('/api/admin/sections/instructors/available');
+  return response.data;
+};
+
+export const getAvailableStudents = async (batchId = null) => {
+  const params = batchId ? { batchId } : {};
+  const response = await apiClient.get('/api/admin/sections/students/available', { params });
+  return response.data;
+};
+
 // Lessons Management
 export const getAllLessons = async () => {
   const response = await apiClient.get('/api/admin/lessons');
+  return response.data;
+};
+
+// Submissions Management
+export const getAllSubmissions = async () => {
+  const response = await apiClient.get('/api/admin/submissions');
   return response.data;
 };
 
@@ -131,8 +170,15 @@ export default {
   updateBatch,
   deleteBatch,
   getAllSections,
+  getSectionById,
   createSection,
   updateSection,
   deleteSection,
+  assignUsersToSection,
+  removeInstructorFromSection,
+  removeStudentsFromSection,
+  getAvailableInstructors,
+  getAvailableStudents,
   getAllLessons,
+  getAllSubmissions,
 };

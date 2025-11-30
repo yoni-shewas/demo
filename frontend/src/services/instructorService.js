@@ -6,6 +6,12 @@ export const getProfile = async () => {
   return response.data;
 };
 
+// Sections
+export const getSections = async () => {
+  const response = await apiClient.get('/api/instructor/sections');
+  return response.data;
+};
+
 // Lessons
 export const getLessons = async () => {
   const response = await apiClient.get('/api/instructor/lessons');
@@ -85,7 +91,7 @@ export const getSubmissions = async () => {
 };
 
 export const gradeSubmission = async (submissionId, gradeData) => {
-  const response = await apiClient.post(`/api/instructor/submissions/${submissionId}/grade`, gradeData);
+  const response = await apiClient.put(`/api/instructor/submissions/${submissionId}/grade`, gradeData);
   return response.data;
 };
 
@@ -113,6 +119,7 @@ export const getDashboardStats = async () => {
 
 export default {
   getProfile,
+  getSections,
   getLessons,
   createLesson,
   updateLesson,

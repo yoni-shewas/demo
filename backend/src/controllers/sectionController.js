@@ -284,7 +284,7 @@ export const updateSection = async (req, res) => {
   }
 };
 
-// Delete section
+// Delete section with cascading deletes
 export const deleteSection = async (req, res) => {
   try {
     const { id } = req.params;
@@ -306,13 +306,33 @@ export const deleteSection = async (req, res) => {
       });
     }
 
-    // Check if section has students
-    if (section.students.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete section with enrolled students. Remove students first.',
+    // Cascade delete all related data
+    
+    // Get all assignment IDs for this section
+    const assignmentIds = section.assignments.map(a => a.id);
+
+    // Delete submissions for these assignments
+    if (assignmentIds.length > 0) {
+      await prisma.submission.deleteMany({
+        where: { assignmentId: { in: assignmentIds } },
       });
     }
+
+    // Delete assignments
+    await prisma.assignment.deleteMany({
+      where: { sectionId: id },
+    });
+
+    // Delete lessons
+    await prisma.lesson.deleteMany({
+      where: { sectionId: id },
+    });
+
+    // Unassign students from this section (set sectionId to null)
+    await prisma.student.updateMany({
+      where: { sectionId: id },
+      data: { sectionId: null },
+    });
 
     // Delete the section
     await prisma.section.delete({
@@ -321,7 +341,7 @@ export const deleteSection = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Section deleted successfully',
+      message: 'Section and all related data deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting section:', error);
@@ -426,6 +446,273 @@ export const assignUsersToSection = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to assign users',
+      error: error.message,
+    });
+  }
+};
+
+// Remove instructor from section
+export const removeInstructorFromSection = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if section exists
+    const section = await prisma.section.findUnique({
+      where: { id },
+    });
+
+    if (!section) {
+      return res.status(404).json({
+        success: false,
+        message: 'Section not found',
+      });
+    }
+
+    // Remove instructor by setting instructorId to null
+    await prisma.section.update({
+      where: { id },
+      data: { instructorId: null },
+    });
+
+    // Fetch updated section
+    const updatedSection = await prisma.section.findUnique({
+      where: { id },
+      include: {
+        batch: true,
+        instructor: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        students: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            students: true,
+            assignments: true,
+            lessons: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Instructor removed from section successfully',
+      section: updatedSection,
+    });
+  } catch (error) {
+    console.error('Error removing instructor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove instructor',
+      error: error.message,
+    });
+  }
+};
+
+// Remove students from section
+export const removeStudentsFromSection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { studentIds } = req.body;
+
+    // Validate input
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student IDs array is required',
+      });
+    }
+
+    // Check if section exists
+    const section = await prisma.section.findUnique({
+      where: { id },
+    });
+
+    if (!section) {
+      return res.status(404).json({
+        success: false,
+        message: 'Section not found',
+      });
+    }
+
+    // Remove students from section by setting sectionId to null
+    await prisma.student.updateMany({
+      where: {
+        id: { in: studentIds },
+        sectionId: id, // Ensure they're actually in this section
+      },
+      data: {
+        sectionId: null,
+      },
+    });
+
+    // Fetch updated section
+    const updatedSection = await prisma.section.findUnique({
+      where: { id },
+      include: {
+        batch: true,
+        instructor: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        students: {
+          include: {
+            user: {
+              select: {
+                username: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            students: true,
+            assignments: true,
+            lessons: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Students removed from section successfully',
+      section: updatedSection,
+    });
+  } catch (error) {
+    console.error('Error removing students:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to remove students',
+      error: error.message,
+    });
+  }
+};
+
+// Get available instructors (not assigned to any section or can be reassigned)
+export const getAvailableInstructors = async (req, res) => {
+  try {
+    const instructors = await prisma.instructor.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        sections: {
+          select: {
+            id: true,
+            name: true,
+            batch: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      instructors,
+    });
+  } catch (error) {
+    console.error('Error fetching instructors:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch instructors',
+      error: error.message,
+    });
+  }
+};
+
+// Get available students (not assigned to a section or in specific batch)
+export const getAvailableStudents = async (req, res) => {
+  try {
+    const { batchId } = req.query;
+
+    const where = {};
+    if (batchId) {
+      where.batchId = batchId;
+    }
+
+    const students = await prisma.student.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        batch: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+        section: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        user: {
+          firstName: 'asc',
+        },
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      students,
+    });
+  } catch (error) {
+    console.error('Error fetching students:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch students',
       error: error.message,
     });
   }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { School, Plus, Edit2, Trash2, Save, X, Users, UserPlus } from 'lucide-react';
+import { School, Plus, Edit2, Trash2, Save, X, Users, UserPlus, UserMinus, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import * as adminService from '../../services/adminService';
 import apiClient from '../../utils/apiClient';
 
 const Batches = () => {
@@ -27,6 +28,10 @@ const Batches = () => {
     instructorId: '',
     studentIds: [],
   });
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [managingSection, setManagingSection] = useState(null);
+  const [availableInstructors, setAvailableInstructors] = useState([]);
+  const [availableStudents, setAvailableStudents] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -125,7 +130,23 @@ const Batches = () => {
   const handleAssignUsers = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post(`/api/admin/sections/${selectedSection.id}/assign`, assignData);
+      // Get instructor profile ID if instructor is selected
+      let instructorProfileId = null;
+      if (assignData.instructorId) {
+        const instructor = instructors.find(i => i.id === assignData.instructorId);
+        instructorProfileId = instructor?.instructorProfile?.id;
+      }
+
+      // Get student profile IDs for selected students
+      const studentProfileIds = assignData.studentIds.map(userId => {
+        const student = students.find(s => s.id === userId);
+        return student?.studentProfile?.id;
+      }).filter(Boolean);
+
+      await adminService.assignUsersToSection(selectedSection.id, {
+        instructorId: instructorProfileId,
+        studentIds: studentProfileIds,
+      });
       toast.success('Users assigned successfully!');
       setShowAssignModal(false);
       setSelectedSection(null);
@@ -134,6 +155,51 @@ const Batches = () => {
     } catch (error) {
       console.error('Error assigning users:', error);
       toast.error(error.response?.data?.message || 'Failed to assign users');
+    }
+  };
+
+  const handleRemoveInstructor = async (sectionId) => {
+    if (!confirm('Remove instructor from this section?')) return;
+    try {
+      await adminService.removeInstructorFromSection(sectionId);
+      toast.success('Instructor removed successfully!');
+      loadData();
+    } catch (error) {
+      console.error('Error removing instructor:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove instructor');
+    }
+  };
+
+  const handleRemoveStudents = async (sectionId, studentIds) => {
+    if (!confirm(`Remove ${studentIds.length} student(s) from this section?`)) return;
+    try {
+      await adminService.removeStudentsFromSection(sectionId, studentIds);
+      toast.success('Students removed successfully!');
+      if (managingSection) {
+        // Refresh the managing section data
+        const updatedSection = sections.find(s => s.id === sectionId);
+        setManagingSection(updatedSection);
+      }
+      loadData();
+    } catch (error) {
+      console.error('Error removing students:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove students');
+    }
+  };
+
+  const openManageModal = async (section) => {
+    setManagingSection(section);
+    setShowManageModal(true);
+    try {
+      const [instructorsRes, studentsRes] = await Promise.all([
+        adminService.getAvailableInstructors(),
+        adminService.getAvailableStudents(section.batchId),
+      ]);
+      setAvailableInstructors(instructorsRes.instructors || []);
+      setAvailableStudents(studentsRes.students || []);
+    } catch (error) {
+      console.error('Error loading available users:', error);
+      toast.error('Failed to load available users');
     }
   };
 
@@ -381,13 +447,35 @@ const Batches = () => {
                     </div>
                   </div>
 
+                  {/* Instructor Management */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-gray-700">Instructor:</p>
+                      {section.instructor && (
+                        <button
+                          onClick={() => handleRemoveInstructor(section.id)}
+                          className="text-xs text-red-600 hover:text-red-800 flex items-center space-x-1"
+                          title="Remove instructor"
+                        >
+                          <XCircle className="h-3 w-3" />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                      {section.instructor?.user 
+                        ? `${section.instructor.user.firstName} ${section.instructor.user.lastName}`
+                        : 'Not assigned'}
+                    </div>
+                  </div>
+
                   {/* Students List */}
                   {section.students && section.students.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 mb-2">Students:</p>
+                      <p className="text-xs font-medium text-gray-700 mb-2">Students ({section.students.length}):</p>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         {section.students.map((student) => (
-                          <div key={student.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
+                          <div key={student.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors">
                             <div className="flex items-center space-x-2">
                               <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
                                 <span className="text-xs font-semibold text-blue-700">
@@ -403,6 +491,13 @@ const Batches = () => {
                                 )}
                               </div>
                             </div>
+                            <button
+                              onClick={() => handleRemoveStudents(section.id, [student.id])}
+                              className="text-red-600 hover:text-red-800"
+                              title="Remove student"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -410,16 +505,13 @@ const Batches = () => {
                   )}
                 </div>
 
-                <div className="border-t border-gray-200 p-4 bg-gray-50">
+                <div className="border-t border-gray-200 p-4 bg-gray-50 flex gap-2">
                   <button
-                    onClick={() => {
-                      setSelectedSection(section);
-                      setShowAssignModal(true);
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 text-sm text-gray-700 hover:text-gray-900"
+                    onClick={() => openManageModal(section)}
+                    className="flex-1 flex items-center justify-center space-x-2 text-sm bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors"
                   >
-                    <UserPlus className="h-4 w-4" />
-                    <span>Assign Users</span>
+                    <Users className="h-4 w-4" />
+                    <span>Manage Users</span>
                   </button>
                 </div>
               </>
@@ -666,6 +758,213 @@ const Batches = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Section Modal (Assign/Remove) */}
+      {showManageModal && managingSection && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Manage {managingSection.name}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowManageModal(false);
+                  setManagingSection(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Current Instructor */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <Users className="h-5 w-5" />
+                  <span>Current Instructor</span>
+                </h3>
+                <div className="border border-gray-200 rounded-lg p-4">
+                  {managingSection.instructor ? (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {managingSection.instructor.user.firstName} {managingSection.instructor.user.lastName}
+                        </p>
+                        <p className="text-sm text-gray-600">{managingSection.instructor.user.email}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveInstructor(managingSection.id)}
+                        className="text-red-600 hover:text-red-800 flex items-center space-x-1"
+                      >
+                        <UserMinus className="h-4 w-4" />
+                        <span className="text-sm">Remove</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No instructor assigned</p>
+                  )}
+                </div>
+
+                {/* Assign New Instructor */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Assign Instructor</h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                    {availableInstructors.map((instructor) => {
+                      const isAssigned = managingSection.instructor?.id === instructor.id;
+                      return (
+                        <button
+                          key={instructor.id}
+                          onClick={async () => {
+                            if (isAssigned) return;
+                            try {
+                              await adminService.assignUsersToSection(managingSection.id, {
+                                instructorId: instructor.id,
+                              });
+                              toast.success('Instructor assigned!');
+                              loadData();
+                              const updated = sections.find(s => s.id === managingSection.id);
+                              setManagingSection(updated);
+                            } catch (error) {
+                              toast.error('Failed to assign instructor');
+                            }
+                          }}
+                          disabled={isAssigned}
+                          className={`w-full text-left p-3 hover:bg-gray-50 transition-colors ${
+                            isAssigned ? 'bg-blue-50 cursor-not-allowed' : 'cursor-pointer'
+                          } border-b border-gray-200 last:border-0`}
+                        >
+                          <p className="text-sm font-medium text-gray-900">
+                            {instructor.user.firstName} {instructor.user.lastName}
+                            {isAssigned && <span className="ml-2 text-blue-600">(Current)</span>}
+                          </p>
+                          <p className="text-xs text-gray-600">{instructor.user.email}</p>
+                          {instructor.sections.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Teaching: {instructor.sections.map(s => s.name).join(', ')}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                    {availableInstructors.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No instructors available</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Current & Available Students */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <Users className="h-5 w-5" />
+                  <span>Students ({managingSection.students?.length || 0})</span>
+                </h3>
+                
+                {/* Current Students */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Current Students</h4>
+                  <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                    {managingSection.students && managingSection.students.length > 0 ? (
+                      managingSection.students.map((student) => (
+                        <div
+                          key={student.id}
+                          className="flex items-center justify-between p-3 hover:bg-gray-50 border-b border-gray-200 last:border-0"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span className="text-xs font-semibold text-blue-700">
+                                {student.user?.firstName?.charAt(0)}{student.user?.lastName?.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {student.user?.firstName} {student.user?.lastName}
+                              </p>
+                              <p className="text-xs text-gray-600">{student.user?.email}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveStudents(managingSection.id, [student.id])}
+                            className="text-red-600 hover:text-red-800 flex items-center space-x-1"
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-4">No students enrolled</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Add Students */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Add Students</h4>
+                  <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                    {availableStudents
+                      .filter(s => !managingSection.students?.find(ms => ms.id === s.id))
+                      .map((student) => (
+                        <button
+                          key={student.id}
+                          onClick={async () => {
+                            try {
+                              await adminService.assignUsersToSection(managingSection.id, {
+                                studentIds: [student.id],
+                              });
+                              toast.success('Student added!');
+                              loadData();
+                              const updated = sections.find(s => s.id === managingSection.id);
+                              setManagingSection(updated);
+                            } catch (error) {
+                              toast.error('Failed to add student');
+                            }
+                          }}
+                          className="w-full text-left p-3 hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-0"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                              <span className="text-xs font-semibold text-green-700">
+                                {student.user?.firstName?.charAt(0)}{student.user?.lastName?.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {student.user?.firstName} {student.user?.lastName}
+                              </p>
+                              <p className="text-xs text-gray-600">{student.user?.email}</p>
+                              {student.section && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                  Currently in: {student.section.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    {availableStudents.filter(s => !managingSection.students?.find(ms => ms.id === s.id)).length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No students available to add</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowManageModal(false);
+                  setManagingSection(null);
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

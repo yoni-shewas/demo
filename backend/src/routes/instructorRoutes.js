@@ -4,9 +4,11 @@ import {
   getSections,
   createAssignment,
   getAssignments,
+  getAllSubmissions,
   getAssignmentSubmissions,
   updateAssignment,
   deleteAssignment,
+  gradeSubmission,
   createLesson,
   getLessons,
   updateLesson,
@@ -64,11 +66,25 @@ router.put('/assignments/:assignmentId', updateAssignment);
 router.delete('/assignments/:assignmentId', deleteAssignment);
 
 /**
+ * @route   GET /api/instructor/submissions
+ * @desc    Get all submissions for all instructor's assignments
+ * @access  Instructor only
+ */
+router.get('/submissions', getAllSubmissions);
+
+/**
  * @route   GET /api/instructor/assignments/:assignmentId/submissions
  * @desc    Get all submissions for a specific assignment
  * @access  Instructor only
  */
 router.get('/assignments/:assignmentId/submissions', getAssignmentSubmissions);
+
+/**
+ * @route   PUT /api/instructor/submissions/:submissionId/grade
+ * @desc    Grade a submission with feedback
+ * @access  Instructor only
+ */
+router.put('/submissions/:submissionId/grade', gradeSubmission);
 
 // ========== LESSON ROUTES ==========
 

@@ -15,9 +15,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       { name: 'Users', path: '/admin/users', icon: Users },
       { name: 'Batches', path: '/admin/batches', icon: School },
       { name: 'Lessons', path: '/admin/lessons', icon: FileCode },
+      { name: 'Submissions', path: '/admin/submissions', icon: Send },
       { name: 'Code Editor', path: '/code', icon: FileCode },
       { name: 'Assignments', path: '/assignments', icon: ClipboardList },
-      { name: 'Submissions', path: '/submissions', icon: Send },
     ],
     INSTRUCTOR: [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },

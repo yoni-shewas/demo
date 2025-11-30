@@ -19,6 +19,7 @@ import Users from './pages/Users';
 import AdminUsers from './pages/admin/Users';
 import AdminBatches from './pages/admin/Batches';
 import AdminLessons from './pages/admin/Lessons';
+import AdminSubmissions from './pages/admin/Submissions';
 
 // Instructor Pages
 import InstructorLessons from './pages/instructor/Lessons';
@@ -117,6 +118,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminLessons />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/submissions"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminSubmissions />
                 </ProtectedRoute>
               }
             />

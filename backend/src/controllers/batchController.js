@@ -225,7 +225,7 @@ export const updateBatch = async (req, res) => {
   }
 };
 
-// Delete batch
+// Delete batch with cascading deletes
 export const deleteBatch = async (req, res) => {
   try {
     const { id } = req.params;
@@ -234,7 +234,12 @@ export const deleteBatch = async (req, res) => {
     const batch = await prisma.batch.findUnique({
       where: { id },
       include: {
-        sections: true,
+        sections: {
+          include: {
+            assignments: true,
+            lessons: true,
+          },
+        },
         students: true,
       },
     });
@@ -246,13 +251,45 @@ export const deleteBatch = async (req, res) => {
       });
     }
 
-    // Check if batch has sections
-    if (batch.sections.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete batch with existing sections. Delete sections first.',
+    // Cascade delete all related data
+    const sectionIds = batch.sections.map(s => s.id);
+
+    if (sectionIds.length > 0) {
+      // Get all assignment IDs from these sections
+      const assignments = await prisma.assignment.findMany({
+        where: { sectionId: { in: sectionIds } },
+        select: { id: true },
+      });
+      const assignmentIds = assignments.map(a => a.id);
+
+      // Delete submissions for assignments in these sections
+      if (assignmentIds.length > 0) {
+        await prisma.submission.deleteMany({
+          where: { assignmentId: { in: assignmentIds } },
+        });
+      }
+
+      // Delete assignments in these sections
+      await prisma.assignment.deleteMany({
+        where: { sectionId: { in: sectionIds } },
+      });
+
+      // Delete lessons in these sections
+      await prisma.lesson.deleteMany({
+        where: { sectionId: { in: sectionIds } },
+      });
+
+      // Delete sections
+      await prisma.section.deleteMany({
+        where: { id: { in: sectionIds } },
       });
     }
+
+    // Unassign students from this batch
+    await prisma.student.updateMany({
+      where: { batchId: id },
+      data: { batchId: null, sectionId: null },
+    });
 
     // Delete the batch
     await prisma.batch.delete({
@@ -261,7 +298,7 @@ export const deleteBatch = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Batch deleted successfully',
+      message: 'Batch and all related data deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting batch:', error);

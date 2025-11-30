@@ -617,7 +617,7 @@ export async function updateUser(req, res) {
 }
 
 /**
- * Delete a user
+ * Delete a user with cascading deletes
  * DELETE /api/admin/users/:id
  */
 export async function deleteUser(req, res) {
@@ -627,6 +627,11 @@ export async function deleteUser(req, res) {
     // Check if user exists
     const user = await prisma.user.findUnique({
       where: { id },
+      include: {
+        instructorProfile: true,
+        studentProfile: true,
+        adminProfile: true,
+      },
     });
 
     if (!user) {
@@ -644,6 +649,49 @@ export async function deleteUser(req, res) {
       });
     }
 
+    // Perform cascading deletes based on role
+    if (user.role === 'INSTRUCTOR' && user.instructorProfile) {
+      // Unassign instructor from all sections
+      await prisma.section.updateMany({
+        where: { instructorId: user.instructorProfile.id },
+        data: { instructorId: null },
+      });
+
+      // Delete assignments created by this instructor (if any)
+      // Note: Assignments are linked to sections, not instructors directly
+      
+      // Delete lessons created by this instructor
+      await prisma.lesson.deleteMany({
+        where: { sectionId: { in: await getSectionIdsForInstructor(user.instructorProfile.id) } },
+      });
+
+      // Delete instructor profile
+      await prisma.instructor.delete({
+        where: { id: user.instructorProfile.id },
+      });
+    } else if (user.role === 'STUDENT' && user.studentProfile) {
+      // Delete all submissions by this student
+      await prisma.submission.deleteMany({
+        where: { studentId: user.studentProfile.id },
+      });
+
+      // Delete student profile (this will automatically unassign from section)
+      await prisma.student.delete({
+        where: { id: user.studentProfile.id },
+      });
+    } else if (user.role === 'ADMIN' && user.adminProfile) {
+      // Delete admin profile
+      await prisma.admin.delete({
+        where: { id: user.adminProfile.id },
+      });
+    }
+
+    // Delete all sessions for this user
+    await prisma.session.deleteMany({
+      where: { userId: id },
+    });
+
+    // Finally, delete the user
     await prisma.user.delete({
       where: { id },
     });
@@ -662,6 +710,145 @@ export async function deleteUser(req, res) {
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
+}
+
+/**
+ * Get all submissions grouped by section and batch
+ * GET /api/admin/submissions
+ */
+export async function getAllSubmissions(req, res) {
+  try {
+    // Get all batches with their sections, assignments, and submissions
+    const batches = await prisma.batch.findMany({
+      include: {
+        sections: {
+          include: {
+            instructor: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            assignments: {
+              include: {
+                submissions: {
+                  include: {
+                    student: {
+                      include: {
+                        user: {
+                          select: {
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                            username: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  orderBy: {
+                    submittedAt: 'desc',
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                students: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        year: 'desc',
+      },
+    });
+
+    // Transform data for frontend
+    const groupedData = batches.map((batch) => ({
+      id: batch.id,
+      name: batch.name,
+      type: batch.type,
+      year: batch.year,
+      sections: batch.sections.map((section) => ({
+        id: section.id,
+        name: section.name,
+        studentCount: section._count.students,
+        instructor: section.instructor
+          ? {
+              id: section.instructor.id,
+              name: `${section.instructor.user.firstName} ${section.instructor.user.lastName}`,
+              email: section.instructor.user.email,
+            }
+          : null,
+        submissions: section.assignments.flatMap((assignment) =>
+          assignment.submissions.map((submission) => ({
+            id: submission.id,
+            assignmentId: assignment.id,
+            assignmentTitle: assignment.title,
+            submittedAt: submission.submittedAt,
+            grade: submission.grade,
+            feedback: submission.feedback,
+            submittedCode: submission.submittedCode,
+            student: {
+              id: submission.student.id,
+              studentId: submission.student.studentId,
+              name: `${submission.student.user.firstName} ${submission.student.user.lastName}`,
+              email: submission.student.user.email,
+            },
+          }))
+        ),
+      })),
+    }));
+
+    // Calculate total statistics
+    const totalSubmissions = groupedData.reduce(
+      (sum, batch) => sum + batch.sections.reduce((s, section) => s + section.submissions.length, 0),
+      0
+    );
+
+    const totalGraded = groupedData.reduce(
+      (sum, batch) =>
+        sum + batch.sections.reduce((s, section) => s + section.submissions.filter((sub) => sub.grade !== null).length, 0),
+      0
+    );
+
+    logger.info(`Admin retrieved all submissions: ${totalSubmissions} total`);
+
+    res.json({
+      success: true,
+      data: groupedData,
+      stats: {
+        totalSubmissions,
+        totalGraded,
+        totalPending: totalSubmissions - totalGraded,
+      },
+    });
+  } catch (error) {
+    logger.error('Get all submissions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve submissions',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Helper function to get section IDs for an instructor
+ */
+async function getSectionIdsForInstructor(instructorId) {
+  const sections = await prisma.section.findMany({
+    where: { instructorId },
+    select: { id: true },
+  });
+  return sections.map(s => s.id);
 }
 
 // Helper functions

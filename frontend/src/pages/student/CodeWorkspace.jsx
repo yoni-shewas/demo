@@ -4,7 +4,6 @@ import Editor from '@monaco-editor/react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import * as studentService from '../../services/studentService';
-import { validateTestCases, formatTestResults } from '../../utils/testCaseValidator';
 
 const LANGUAGES = {
   javascript: { id: 63, name: 'JavaScript', monaco: 'javascript', template: 'console.log("Hello World!");' },
@@ -39,7 +38,10 @@ const CodeWorkspace = () => {
       const data = response?.data?.data || response?.data || response?.assignments || response || [];
       setAssignments(Array.isArray(data) ? data : []);
       if (data.length > 0) {
-        setSelectedAssignment(data[0]);
+        const firstAssignment = data[0];
+        setSelectedAssignment(firstAssignment);
+        // Load boilerplate code from assignment if available
+        loadAssignmentBoilerplate(firstAssignment);
       }
     } catch (error) {
       console.error('Error loading assignments:', error);
@@ -47,9 +49,35 @@ const CodeWorkspace = () => {
     }
   };
 
+  const loadAssignmentBoilerplate = (assignment) => {
+    if (!assignment) return;
+
+    // Check if assignment has starterCode (LeetCode-style)
+    if (assignment.starterCode && assignment.starterCode.code) {
+      const assignmentLang = assignment.starterCode.language || 'python';
+      setLanguage(assignmentLang);
+      setCode(assignment.starterCode.code);
+      setOutput('');
+      setExecutionTime(null);
+      setTestResults(null);
+    } else {
+      // Fallback to default template
+      setCode(LANGUAGES[language].template);
+    }
+  };
+
   const handleLanguageChange = (newLang) => {
     setLanguage(newLang);
-    setCode(LANGUAGES[newLang].template);
+    
+    // If there's a selected assignment with boilerplate, keep it
+    // Otherwise, use the default template for the language
+    if (selectedAssignment?.starterCode?.code && selectedAssignment?.starterCode?.language === newLang) {
+      setCode(selectedAssignment.starterCode.code);
+    } else {
+      // Use default template for the language
+      setCode(LANGUAGES[newLang].template);
+    }
+    
     setOutput('');
     setExecutionTime(null);
   };
@@ -107,26 +135,52 @@ const CodeWorkspace = () => {
     }
   };
 
-  const handleRunTests = () => {
+  const handleRunTests = async () => {
     if (!selectedAssignment || !selectedAssignment.testCases) {
       toast.error('No test cases available for this assignment');
       return;
     }
 
+    setIsRunning(true);
+    setActiveTab('testcases');
+    setOutput('Running tests...');
+
     try {
-      const result = validateTestCases(code, selectedAssignment.testCases, language);
-      setTestResults(result);
-      setTestsPassed(result.passed);
-      setActiveTab('testcases');
-      
-      if (result.passed) {
-        toast.success('All test cases passed! You can now submit.');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await axios.post(
+        `http://localhost:3000/api/student/assignments/${selectedAssignment.id}/test`,
+        {
+          code: code,
+          language: language
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        const result = response.data.testResult;
+        setTestResults(result);
+        setTestsPassed(result.passed === result.total);
+        
+        if (result.passed === result.total) {
+          toast.success(`✅ All ${result.total} test cases passed!`);
+        } else {
+          toast.warning(`⚠️ ${result.passed}/${result.total} test cases passed`);
+        }
       } else {
-        toast.error(result.message);
+        toast.error('Failed to run tests: ' + response.data.message);
       }
     } catch (error) {
-      toast.error('Error running test cases: ' + error.message);
-      setTestsPassed(false);
+      console.error('Test execution error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to run tests';
+      toast.error('Error running tests: ' + errorMsg);
+      setTestResults({ passed: 0, total: 0, results: [] });
+    } finally {
+      setIsRunning(false);
     }
   };
 
@@ -140,26 +194,40 @@ const CodeWorkspace = () => {
     if (selectedAssignment.testCases && selectedAssignment.testCases.length > 0) {
       if (!testsPassed) {
         toast.error('Please run and pass all test cases before submitting!');
-        handleRunTests(); // Run tests automatically
+        await handleRunTests(); // Run tests automatically
         return;
       }
     }
 
     setIsSubmitting(true);
     try {
-      await studentService.submitAssignment({
-        assignmentId: selectedAssignment.id,
-        submittedCode: {
-          language,
-          code
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await axios.post(
+        `http://localhost:3000/api/student/assignments/${selectedAssignment.id}/submit`,
+        {
+          code: code,
+          language: language
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
-      toast.success('Assignment submitted successfully!');
-      setTestsPassed(false); // Reset for next submission
-      setTestResults(null);
+      );
+
+      if (response.data.success) {
+        const submission = response.data.submission;
+        toast.success(`✅ Submitted! Score: ${submission.score}/100 (${submission.testsPassed}/${submission.totalTests} tests passed)`);
+        setTestsPassed(false); // Reset for next submission
+        setTestResults(null);
+      } else {
+        toast.error('Failed to submit: ' + response.data.message);
+      }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('Failed to submit assignment');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to submit assignment';
+      toast.error('Submission failed: ' + errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -178,6 +246,7 @@ const CodeWorkspace = () => {
             onChange={(e) => {
               const assignment = assignments.find(a => a.id === e.target.value);
               setSelectedAssignment(assignment);
+              loadAssignmentBoilerplate(assignment);
             }}
             className="bg-gray-700 text-white text-sm border-none rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
@@ -213,21 +282,58 @@ const CodeWorkspace = () => {
                 </div>
 
                 <div className="prose prose-sm max-w-none">
-                  <p className="text-gray-700 whitespace-pre-wrap">
+                  <p className="text-gray-700 whitespace-pre-wrap mb-6">
                     {selectedAssignment.description || 'No description provided.'}
                   </p>
 
-                  {selectedAssignment.starterCode && (
+                  {/* Examples */}
+                  {selectedAssignment.examples && selectedAssignment.examples.length > 0 && (
                     <div className="mt-6">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Starter Code:</h3>
-                      <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
-                        <code>{JSON.stringify(selectedAssignment.starterCode, null, 2)}</code>
-                      </pre>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Examples:</h3>
+                      {selectedAssignment.examples.map((example, idx) => (
+                        <div key={idx} className="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <p className="text-xs font-semibold text-gray-600 mb-1">Example {idx + 1}:</p>
+                          <p className="text-sm"><strong>Input:</strong> <code className="bg-white px-2 py-1 rounded">{example.input}</code></p>
+                          <p className="text-sm mt-1"><strong>Output:</strong> <code className="bg-white px-2 py-1 rounded">{example.output}</code></p>
+                          {example.explanation && (
+                            <p className="text-sm text-gray-600 mt-2"><strong>Explanation:</strong> {example.explanation}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Constraints */}
+                  {selectedAssignment.constraints && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Constraints:</h3>
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedAssignment.constraints}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Test Cases (Public) */}
+                  {selectedAssignment.testCases && selectedAssignment.testCases.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Test Cases:</h3>
+                      <div className="space-y-2">
+                        {selectedAssignment.testCases.map((test, idx) => (
+                          <div key={idx} className="bg-blue-50 p-3 rounded border border-blue-200">
+                            <p className="text-xs font-semibold text-blue-900 mb-1">Test {idx + 1}</p>
+                            <p className="text-sm"><strong>Input:</strong> <code className="bg-white px-2 py-1 rounded text-xs">{test.input}</code></p>
+                            <p className="text-sm mt-1"><strong>Expected:</strong> <code className="bg-white px-2 py-1 rounded text-xs">{test.expectedOutput}</code></p>
+                            {test.explanation && (
+                              <p className="text-xs text-gray-600 mt-1">{test.explanation}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
                   {selectedAssignment.dueDate && (
-                    <div className="mt-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                    <div className="mt-6 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
                       <p className="text-sm text-yellow-800">
                         <strong>Due:</strong> {new Date(selectedAssignment.dueDate).toLocaleString()}
                       </p>
@@ -392,17 +498,17 @@ const CodeWorkspace = () => {
                     </div>
                   ) : null}
                   
-                  {testResults && (
+                  {testResults && testResults.results && (
                     <div className="space-y-2">
-                      <div className={`p-3 rounded border ${testResults.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                        <p className={`font-semibold ${testResults.passed ? 'text-green-700' : 'text-red-700'}`}>
-                          {testResults.message}
+                      <div className={`p-3 rounded border ${testResults.passed === testResults.total ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                        <p className={`font-semibold ${testResults.passed === testResults.total ? 'text-green-700' : 'text-red-700'}`}>
+                          {testResults.passed} / {testResults.total} tests passed
                         </p>
                       </div>
                       
-                      {formatTestResults(testResults.results).map((result) => (
+                      {testResults.results.map((result, idx) => (
                         <div 
-                          key={result.index}
+                          key={idx}
                           className={`p-3 rounded border ${result.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
                         >
                           <div className="flex items-start space-x-2">
@@ -412,15 +518,18 @@ const CodeWorkspace = () => {
                               <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                             )}
                             <div className="flex-1 text-sm">
-                              <p className="font-medium text-gray-900">Test #{result.index}: {result.description}</p>
+                              <p className="font-medium text-gray-900">Test #{idx + 1}</p>
                               <div className="mt-1 space-y-1 text-xs font-mono">
                                 <p><span className="text-gray-600">Input:</span> {result.input}</p>
-                                <p><span className="text-gray-600">Expected:</span> {result.expected}</p>
+                                <p><span className="text-gray-600">Expected:</span> {result.expectedOutput}</p>
                                 <p className={result.passed ? 'text-green-700' : 'text-red-700'}>
-                                  <span className="text-gray-600">Got:</span> {result.actual}
+                                  <span className="text-gray-600">Got:</span> {result.actualOutput || 'No output'}
                                 </p>
                                 {result.error && (
                                   <p className="text-red-600">Error: {result.error}</p>
+                                )}
+                                {result.executionTime && (
+                                  <p className="text-gray-500">Runtime: {result.executionTime}</p>
                                 )}
                               </div>
                             </div>

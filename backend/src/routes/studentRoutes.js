@@ -4,6 +4,8 @@ import {
   getAssignments,
   getAssignment,
   submitAssignment,
+  testAssignment,
+  submitAssignmentCode,
   getSubmissions,
   getAssignmentSubmissions,
   getLessons,
@@ -37,6 +39,22 @@ router.get('/assignments', getAssignments);
  * @access  Student only
  */
 router.get('/assignments/:assignmentId', getAssignment);
+
+/**
+ * @route   POST /api/student/assignments/:assignmentId/test
+ * @desc    Test code against public test cases (no submission)
+ * @access  Student only
+ * @body    { code, language }
+ */
+router.post('/assignments/:assignmentId/test', testAssignment);
+
+/**
+ * @route   POST /api/student/assignments/:assignmentId/submit
+ * @desc    Submit code with automatic test grading
+ * @access  Student only
+ * @body    { code, language }
+ */
+router.post('/assignments/:assignmentId/submit', submitAssignmentCode);
 
 // Submission route moved below with file upload
 

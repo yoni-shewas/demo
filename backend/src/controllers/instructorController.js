@@ -1,7 +1,9 @@
+import bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
-import logger from '../config/logger.js';
-import { getFileUrl, deleteFile } from '../config/upload.js';
 import path from 'path';
+import logger from '../config/logger.js';
+import { validateSolutionCode } from '../services/codeExecutor.js';
+import { getFileUrl, deleteFile } from '../config/upload.js';
 
 const prisma = new PrismaClient();
 
@@ -203,6 +205,31 @@ export async function createAssignment(req, res) {
       }
     }
 
+    // Validate solution code against test cases if provided
+    if (parsedSolutionCode && (parsedTestCases || parsedHiddenTestCases)) {
+      const allTestCases = [...(parsedTestCases || []), ...(parsedHiddenTestCases || [])];
+      
+      if (allTestCases.length > 0) {
+        logger.info('Validating solution code against test cases...');
+        const validation = await validateSolutionCode(
+          parsedSolutionCode,
+          parsedTestCases || [],
+          parsedHiddenTestCases || []
+        );
+
+        if (!validation.valid) {
+          return res.status(400).json({
+            success: false,
+            message: 'Solution code validation failed',
+            error: validation.error,
+            testResults: validation.results,
+          });
+        }
+
+        logger.info(`Solution code validated successfully: ${validation.message}`);
+      }
+    }
+
     // Create assignment
     const assignment = await prisma.assignment.create({
       data: {
@@ -308,6 +335,89 @@ export async function getAssignments(req, res) {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve assignments',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Get all submissions for instructor's assignments
+ * GET /api/instructor/submissions
+ */
+export async function getAllSubmissions(req, res) {
+  try {
+    const userId = req.user.userId;
+
+    // Get instructor with all sections and their assignments
+    const instructor = await prisma.instructor.findUnique({
+      where: { userId },
+      include: {
+        sections: {
+          include: {
+            assignments: {
+              include: {
+                submissions: {
+                  include: {
+                    student: {
+                      include: {
+                        user: {
+                          select: {
+                            id: true,
+                            username: true,
+                            email: true,
+                            firstName: true,
+                            lastName: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  orderBy: {
+                    submittedAt: 'desc',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!instructor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Instructor profile not found',
+      });
+    }
+
+    // Flatten all submissions from all assignments
+    const allSubmissions = instructor.sections.flatMap((section) =>
+      section.assignments.flatMap((assignment) =>
+        assignment.submissions.map((submission) => ({
+          ...submission,
+          student: {
+            id: submission.student.id,
+            studentId: submission.student.studentId,
+            firstName: submission.student.user.firstName,
+            lastName: submission.student.user.lastName,
+            email: submission.student.user.email,
+          },
+        }))
+      )
+    );
+
+    logger.debug(`All submissions retrieved for instructor: ${req.user.email} (${allSubmissions.length} total)`);
+
+    res.json({
+      success: true,
+      submissions: allSubmissions,
+      total: allSubmissions.length,
+    });
+  } catch (error) {
+    logger.error('Get all submissions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve submissions',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
@@ -545,7 +655,17 @@ export async function deleteAssignment(req, res) {
       });
     }
 
-    // Delete assignment (submissions will cascade delete)
+    // First, explicitly delete all submissions for this assignment
+    // This ensures cascade delete works properly
+    const deleteSubmissions = await prisma.submission.deleteMany({
+      where: { assignmentId },
+    });
+
+    logger.info(
+      `Deleted ${deleteSubmissions.count} submissions for assignment ${assignmentId}`
+    );
+
+    // Now delete the assignment
     await prisma.assignment.delete({
       where: { id: assignmentId },
     });
@@ -557,6 +677,7 @@ export async function deleteAssignment(req, res) {
     res.json({
       success: true,
       message: 'Assignment deleted successfully',
+      deletedSubmissions: deleteSubmissions.count,
     });
   } catch (error) {
     logger.error('Delete assignment error:', error);
@@ -907,6 +1028,112 @@ export async function deleteLesson(req, res) {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Grade a submission
+ * PUT /api/instructor/submissions/:submissionId/grade
+ */
+export async function gradeSubmission(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { submissionId } = req.params;
+    const { grade, feedback } = req.body;
+
+    // Get instructor profile
+    const instructor = await prisma.instructor.findUnique({
+      where: { userId },
+    });
+
+    if (!instructor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Instructor profile not found',
+      });
+    }
+
+    // Get submission with assignment and section
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        assignment: {
+          include: {
+            section: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'Submission not found',
+      });
+    }
+
+    // Verify instructor owns this section
+    if (submission.assignment.section.instructorId !== instructor.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to grade this submission',
+      });
+    }
+
+    // Validate grade
+    if (grade !== undefined && grade !== null) {
+      const gradeNum = parseFloat(grade);
+      if (isNaN(gradeNum) || gradeNum < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Grade must be a non-negative number',
+        });
+      }
+    }
+
+    // Update submission with grade and feedback
+    const updatedSubmission = await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        grade: grade !== undefined && grade !== null ? parseFloat(grade) : null,
+        feedback: feedback || null,
+        gradedAt: new Date(),
+        gradedBy: instructor.id,
+      },
+      include: {
+        student: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        assignment: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    logger.info(`Instructor ${req.user.email} graded submission ${submissionId}`);
+
+    res.json({
+      success: true,
+      message: 'Submission graded successfully',
+      submission: updatedSubmission,
+    });
+  } catch (error) {
+    logger.error('Grade submission error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to grade submission',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }

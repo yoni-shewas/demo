@@ -8,6 +8,7 @@ import {
   exportUsersToCSV,
   getAllUsers,
   deleteUser,
+  getAllSubmissions,
 } from '../controllers/adminController.js';
 import { authenticate, authorize } from '../middlewares/authMiddleware.js';
 
@@ -80,5 +81,12 @@ router.post('/users/import/sql', importUsersFromSQL);
  * @access  Admin only
  */
 router.get('/users/export/csv', exportUsersToCSV);
+
+/**
+ * @route   GET /api/admin/submissions
+ * @desc    Get all submissions grouped by batch and section
+ * @access  Admin only
+ */
+router.get('/submissions', getAllSubmissions);
 
 export default router;

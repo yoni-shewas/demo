@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import logger from '../config/logger.js';
 import { getFileUrl } from '../config/upload.js';
+import { runPublicTests, runAllTests } from '../services/codeExecutor.js';
 import path from 'path';
 
 const prisma = new PrismaClient();
@@ -629,6 +630,276 @@ export async function submitAssignment(req, res) {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Test code against public test cases before submission
+ * POST /api/student/assignments/:assignmentId/test
+ * Body: { code, language }
+ */
+export async function testAssignment(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { assignmentId } = req.params;
+    const { code, language } = req.body;
+
+    if (!code || !language) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code and language are required',
+      });
+    }
+
+    // Get student profile
+    const student = await prisma.student.findUnique({
+      where: { userId },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student profile not found',
+      });
+    }
+
+    // Get assignment with test cases
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        section: true,
+      },
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found',
+      });
+    }
+
+    // Verify student is in the assignment's section
+    if (assignment.section.id !== student.sectionId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this assignment',
+      });
+    }
+
+    // Check if assignment has test cases
+    const testCases = assignment.testCases || [];
+    if (testCases.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This assignment does not have test cases',
+      });
+    }
+
+    // Combine student code with test driver for LeetCode-style assignments
+    let executableCode = code;
+    if (assignment.testDriver && assignment.testDriver.code) {
+      // Combine: Student's function + Test driver
+      executableCode = `${code}\n\n${assignment.testDriver.code}`;
+      logger.debug(`Combined student code with test driver for assignment ${assignmentId}`);
+    }
+
+    // Run code against public test cases only
+    logger.info(`Student ${student.id} testing code for assignment ${assignmentId}`);
+    const testResult = await runPublicTests(executableCode, language, testCases);
+
+    res.json({
+      success: true,
+      message: `Passed ${testResult.passed} out of ${testResult.total} public tests`,
+      testResult: {
+        passed: testResult.passed,
+        failed: testResult.failed,
+        total: testResult.total,
+        score: testResult.score,
+        results: testResult.results,
+      },
+    });
+  } catch (error) {
+    logger.error('Test assignment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to run tests',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Submit assignment with automatic grading
+ * POST /api/student/assignments/:assignmentId/submit
+ * Body: { code, language }
+ */
+export async function submitAssignmentCode(req, res) {
+  try {
+    const userId = req.user.userId;
+    const { assignmentId } = req.params;
+    const { code, language } = req.body;
+
+    if (!code || !language) {
+      return res.status(400).json({
+        success: false,
+        message: 'Code and language are required',
+      });
+    }
+
+    // Get student profile
+    const student = await prisma.student.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student profile not found',
+      });
+    }
+
+    // Get assignment with test cases
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        section: true,
+      },
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Assignment not found',
+      });
+    }
+
+    // Verify student is in the assignment's section
+    if (assignment.section.id !== student.sectionId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this assignment',
+      });
+    }
+
+    // Check if assignment has test cases
+    const testCases = assignment.testCases || [];
+    const hiddenTestCases = assignment.hiddenTestCases || [];
+    
+    if (testCases.length === 0 && hiddenTestCases.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This assignment does not have test cases for auto-grading',
+      });
+    }
+
+    // Get next attempt number
+    const existingSubmissions = await prisma.submission.findMany({
+      where: {
+        assignmentId,
+        studentId: student.id,
+      },
+      orderBy: {
+        attemptNumber: 'desc',
+      },
+      take: 1,
+    });
+
+    const attemptNumber = existingSubmissions.length > 0
+      ? existingSubmissions[0].attemptNumber + 1
+      : 1;
+
+    // Combine student code with test driver for LeetCode-style assignments
+    let executableCode = code;
+    if (assignment.testDriver && assignment.testDriver.code) {
+      // Combine: Student's function + Test driver
+      executableCode = `${code}\n\n${assignment.testDriver.code}`;
+      logger.debug(`Combined student code with test driver for submission ${assignmentId}`);
+    }
+
+    // Run code against ALL test cases (public + hidden)
+    logger.info(`Student ${student.id} submitting assignment ${assignmentId}, attempt ${attemptNumber}`);
+    const testResult = await runAllTests(executableCode, language, testCases, hiddenTestCases);
+
+    // Create submission with test results
+    const submission = await prisma.submission.create({
+      data: {
+        assignmentId,
+        studentId: student.id,
+        attemptNumber,
+        submittedCode: {
+          code,
+          language,
+        },
+        executionResult: {
+          results: testResult.results,
+        },
+        testsPassed: testResult.passed,
+        totalTests: testResult.total,
+        score: testResult.score,
+      },
+      include: {
+        assignment: {
+          select: {
+            title: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    logger.info(`Student ${student.user?.email} submitted assignment ${assignmentId}: ${testResult.passed}/${testResult.total} tests passed, score: ${testResult.score}`);
+
+    res.status(201).json({
+      success: true,
+      message: testResult.allPassed
+        ? 'All tests passed! Great work!'
+        : `Submission received. Passed ${testResult.passed} out of ${testResult.total} tests.`,
+      submission: {
+        id: submission.id,
+        attemptNumber: submission.attemptNumber,
+        submittedAt: submission.submittedAt,
+        testsPassed: submission.testsPassed,
+        totalTests: submission.totalTests,
+        score: submission.score,
+        allPassed: testResult.allPassed,
+      },
+      testResult: {
+        passed: testResult.passed,
+        failed: testResult.failed,
+        total: testResult.total,
+        score: testResult.score,
+        // Only show public test results, hide hidden test details
+        publicResults: testResult.results.slice(0, testCases.length),
+        hiddenTestsPassed: testResult.passed - testResult.results.slice(0, testCases.length).filter(r => r.passed).length,
+        hiddenTestsTotal: hiddenTestCases.length,
+      },
+    });
+  } catch (error) {
+    logger.error('Submit assignment code error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit assignment',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
