@@ -9,6 +9,7 @@ const InstructorDashboard = () => {
   const navigate = useNavigate();
   const [lessons, setLessons] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [sections, setSections] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,9 +20,10 @@ const InstructorDashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [lessonsData, assignmentsData, profileData] = await Promise.allSettled([
+      const [lessonsData, assignmentsData, sectionsData, profileData] = await Promise.allSettled([
         instructorService.getLessons(),
         instructorService.getAssignments(),
+        instructorService.getSections(),
         instructorService.getProfile(),
       ]);
 
@@ -33,6 +35,11 @@ const InstructorDashboard = () => {
       if (assignmentsData.status === 'fulfilled') {
         const data = assignmentsData.value?.data || assignmentsData.value?.assignments || assignmentsData.value || [];
         setAssignments(Array.isArray(data) ? data : []);
+      }
+
+      if (sectionsData.status === 'fulfilled') {
+        const data = sectionsData.value?.data || sectionsData.value?.sections || sectionsData.value || [];
+        setSections(Array.isArray(data) ? data : []);
       }
 
       if (profileData.status === 'fulfilled') {
@@ -87,17 +94,23 @@ const InstructorDashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <StatCard
+          title="My Sections"
+          value={sections.length}
+          icon={Users}
+          color="bg-indigo-500"
+        />
+        <StatCard
+          title="Total Students"
+          value={sections.reduce((sum, s) => sum + (s._count?.students || 0), 0)}
+          icon={Users}
+          color="bg-blue-500"
+        />
         <StatCard
           title="Total Lessons"
           value={lessons.length}
           icon={BookOpen}
-          color="bg-blue-500"
-        />
-        <StatCard
-          title="Active Assignments"
-          value={assignments.filter((a) => new Date(a.dueDate) > new Date()).length}
-          icon={ClipboardList}
           color="bg-green-500"
         />
         <StatCard
@@ -106,6 +119,88 @@ const InstructorDashboard = () => {
           icon={ClipboardList}
           color="bg-purple-500"
         />
+      </div>
+
+      {/* Assigned Sections */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900">My Assigned Sections</h2>
+          <p className="text-sm text-gray-600 mt-1">Sections you're teaching this semester</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {sections.map((section) => (
+            <div
+              key={section.id}
+              className="border border-gray-200 rounded-lg p-4 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{section.name}</h3>
+                  {section.batch && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                        {section.batch.name}
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        {section.batch.type} - {section.batch.year} E.C.
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-indigo-600">{section._count?.students || 0}</div>
+                  <div className="text-xs text-gray-600">Students</div>
+                </div>
+              </div>
+
+              {/* Students List */}
+              {section.students && section.students.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Students:</p>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {section.students.slice(0, 5).map((student) => (
+                      <div key={student.id} className="flex items-center gap-2 text-xs">
+                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-xs font-semibold text-gray-600">
+                            {student.user?.firstName?.charAt(0)}{student.user?.lastName?.charAt(0)}
+                          </span>
+                        </div>
+                        <span className="text-gray-700">
+                          {student.user?.firstName} {student.user?.lastName}
+                        </span>
+                        {student.studentId && (
+                          <span className="text-gray-500">({student.studentId})</span>
+                        )}
+                      </div>
+                    ))}
+                    {section.students.length > 5 && (
+                      <p className="text-xs text-gray-500 italic">
+                        +{section.students.length - 5} more students
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Assignments Count */}
+              <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600">
+                <span>{section._count?.assignments || 0} Assignments</span>
+                <span>{section._count?.lessons || 0} Lessons</span>
+              </div>
+            </div>
+          ))}
+
+          {sections.length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <Users className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <p className="text-lg font-medium text-gray-700">No Sections Assigned</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Contact an administrator to be assigned to sections
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -219,6 +314,18 @@ const InstructorDashboard = () => {
                     Active
                   </span>
                 </div>
+                {assignment.section && (
+                  <div className="mb-2">
+                    <span className="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                      {assignment.section.name}
+                    </span>
+                    {assignment.section.batch && (
+                      <span className="text-xs text-gray-500 ml-1">
+                        ({assignment.section.batch.name})
+                      </span>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-gray-500 mb-3 line-clamp-2">
                   {assignment.description}
                 </p>

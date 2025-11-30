@@ -9,6 +9,7 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [sections, setSections] = useState([]);
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,8 +21,9 @@ const AdminDashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usersData, sectionsData, lessonsData] = await Promise.allSettled([
+      const [usersData, batchesData, sectionsData, lessonsData] = await Promise.allSettled([
         adminService.getAllUsers(),
+        adminService.getAllBatches(),
         adminService.getAllSections(),
         adminService.getAllLessons(),
       ]);
@@ -30,12 +32,16 @@ const AdminDashboard = () => {
         setUsers(usersData.value.users || usersData.value || []);
       }
 
+      if (batchesData.status === 'fulfilled') {
+        setBatches(batchesData.value.batches || batchesData.value.data?.batches || batchesData.value || []);
+      }
+
       if (sectionsData.status === 'fulfilled') {
-        setSections(sectionsData.value.sections || sectionsData.value.data?.sections || []);
+        setSections(sectionsData.value.sections || sectionsData.value.data?.sections || sectionsData.value || []);
       }
 
       if (lessonsData.status === 'fulfilled') {
-        setLessons(lessonsData.value.lessons || lessonsData.value.data?.lessons || []);
+        setLessons(lessonsData.value.lessons || lessonsData.value.data?.lessons || lessonsData.value || []);
       }
 
       toast.success('Dashboard loaded successfully');
@@ -96,7 +102,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatCard
           title="Total Users"
           value={users.length}
@@ -106,19 +112,11 @@ const AdminDashboard = () => {
           trend="+12% from last month"
         />
         <StatCard
-          title="Instructors"
-          value={users.filter((u) => u.role === 'INSTRUCTOR').length}
-          icon={Activity}
+          title="Batches"
+          value={batches.length}
+          icon={School}
           color="bg-gradient-to-br from-green-500 to-green-600"
-          onClick={() => navigate('/admin/users')}
-        />
-        <StatCard
-          title="Students"
-          value={users.filter((u) => u.role === 'STUDENT').length}
-          icon={Users}
-          color="bg-gradient-to-br from-purple-500 to-purple-600"
-          onClick={() => navigate('/admin/users')}
-          trend="+8% from last month"
+          onClick={() => navigate('/admin/batches')}
         />
         <StatCard
           title="Sections"
@@ -126,6 +124,21 @@ const AdminDashboard = () => {
           icon={School}
           color="bg-gradient-to-br from-indigo-500 to-indigo-600"
           onClick={() => navigate('/admin/batches')}
+        />
+        <StatCard
+          title="Instructors"
+          value={users.filter((u) => u.role === 'INSTRUCTOR').length}
+          icon={Activity}
+          color="bg-gradient-to-br from-purple-500 to-purple-600"
+          onClick={() => navigate('/admin/users')}
+        />
+        <StatCard
+          title="Students"
+          value={users.filter((u) => u.role === 'STUDENT').length}
+          icon={Users}
+          color="bg-gradient-to-br from-orange-500 to-orange-600"
+          onClick={() => navigate('/admin/users')}
+          trend="+8% from last month"
         />
       </div>
 
@@ -158,6 +171,110 @@ const AdminDashboard = () => {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Batches & Sections Overview */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Batches & Sections</h2>
+            <p className="text-sm text-gray-600 mt-1">Quick overview of academic structure</p>
+          </div>
+          <button
+            onClick={() => navigate('/admin/batches')}
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
+          >
+            Manage All <ChevronRight className="h-4 w-4 ml-1" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Batches */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Batches ({batches.length})</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {batches.slice(0, 10).map((batch) => (
+                <div
+                  key={batch.id}
+                  onClick={() => navigate('/admin/batches')}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-all cursor-pointer group"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{batch.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                        {batch.type}
+                      </span>
+                      <span className="text-xs text-gray-600">{batch.year} E.C.</span>
+                      <span className="text-xs text-gray-500">
+                        {batch._count?.sections || 0} sections, {batch._count?.students || 0} students
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-green-600 group-hover:translate-x-1 transition-all" />
+                </div>
+              ))}
+              {batches.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <School className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm">No batches yet</p>
+                  <button
+                    onClick={() => navigate('/admin/batches')}
+                    className="text-sm text-blue-600 hover:text-blue-700 mt-2"
+                  >
+                    Create First Batch
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Sections ({sections.length})</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {sections.slice(0, 10).map((section) => (
+                <div
+                  key={section.id}
+                  onClick={() => navigate('/admin/batches')}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{section.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {section.batch && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                          {section.batch.name}
+                        </span>
+                      )}
+                      {section.instructor?.user && (
+                        <span className="text-xs text-gray-600">
+                          {section.instructor.user.firstName} {section.instructor.user.lastName}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-500">
+                        {section._count?.students || 0} students
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                </div>
+              ))}
+              {sections.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <School className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                  <p className="text-sm">No sections yet</p>
+                  <button
+                    onClick={() => navigate('/admin/batches')}
+                    className="text-sm text-blue-600 hover:text-blue-700 mt-2"
+                  >
+                    Create First Section
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

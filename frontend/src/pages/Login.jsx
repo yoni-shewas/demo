@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Code2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
@@ -28,12 +29,28 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-8 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Back to Home Link */}
+        <div className="text-center mb-6">
+          <Link to="/" className="inline-flex items-center text-sm text-gray-600 hover:text-blue-600 transition-colors">
+            ← Back to Home
+          </Link>
+        </div>
+
+        <div className="backdrop-blur-xl bg-white/80 border border-white/40 rounded-2xl shadow-2xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">CodeLan</h1>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4">
+              <Code2 className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-extrabold text-gray-900">SMU Code Platform</h1>
             <p className="text-sm text-gray-600 mt-2">Sign in to your account</p>
           </div>
 
@@ -84,20 +101,25 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-black text-white text-sm font-medium py-2.5 px-4 rounded hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-600 text-white text-base font-semibold py-3 px-4 rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
             >
-              {loading ? 'Signing in...' : 'Login'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
           {/* Footer */}
           <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Don't have an account? <a href="#" className="text-gray-900 hover:underline">Register</a></p>
+            <p>New to the platform? Contact your administrator</p>
           </div>
 
           {/* Demo Credentials */}
-          <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-            <p className="text-xs text-gray-500">Demo: admin@school.edu / admin123</p>
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-xs text-gray-500 text-center font-medium mb-2">Demo Credentials:</p>
+            <div className="space-y-1 text-xs text-gray-600">
+              <p><span className="font-semibold">Admin:</span> admin@school.edu / admin123</p>
+              <p><span className="font-semibold">Instructor:</span> john.doe@school.edu / inst123</p>
+              <p><span className="font-semibold">Student:</span> jane.smith@school.edu / student123</p>
+            </div>
           </div>
         </div>
       </div>

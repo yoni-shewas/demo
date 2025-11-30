@@ -4,18 +4,24 @@ import { toast } from 'react-toastify';
 import apiClient from '../../utils/apiClient';
 
 const Batches = () => {
+  const [batches, setBatches] = useState([]);
   const [sections, setSections] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateBatchModal, setShowCreateBatchModal] = useState(false);
+  const [showCreateSectionModal, setShowCreateSectionModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [editingBatch, setEditingBatch] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const [selectedSection, setSelectedSection] = useState(null);
-  const [formData, setFormData] = useState({
+  const [batchFormData, setBatchFormData] = useState({
     name: '',
-    semester: '',
+    year: '',
+    type: '',
+  });
+  const [sectionFormData, setSectionFormData] = useState({
+    name: '',
     batchId: '',
-    instructorId: '',
   });
   const [assignData, setAssignData] = useState({
     instructorId: '',
@@ -29,10 +35,15 @@ const Batches = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sectionsRes, usersRes] = await Promise.allSettled([
+      const [batchesRes, sectionsRes, usersRes] = await Promise.allSettled([
+        apiClient.get('/api/admin/batches'),
         apiClient.get('/api/admin/sections'),
         apiClient.get('/api/admin/users'),
       ]);
+
+      if (batchesRes.status === 'fulfilled') {
+        setBatches(batchesRes.value.data.batches || batchesRes.value.data || []);
+      }
 
       if (sectionsRes.status === 'fulfilled') {
         setSections(sectionsRes.value.data.sections || sectionsRes.value.data || []);
@@ -51,17 +62,33 @@ const Batches = () => {
     }
   };
 
+  const handleCreateBatch = async (e) => {
+    e.preventDefault();
+    try {
+      await apiClient.post('/api/admin/batches', batchFormData);
+      toast.success('Batch created successfully!');
+      setShowCreateBatchModal(false);
+      setBatchFormData({
+        name: '',
+        year: '',
+        type: '',
+      });
+      loadData();
+    } catch (error) {
+      console.error('Error creating batch:', error);
+      toast.error(error.response?.data?.message || 'Failed to create batch');
+    }
+  };
+
   const handleCreateSection = async (e) => {
     e.preventDefault();
     try {
-      await apiClient.post('/api/admin/sections', formData);
+      await apiClient.post('/api/admin/sections', sectionFormData);
       toast.success('Section created successfully!');
-      setShowCreateModal(false);
-      setFormData({
+      setShowCreateSectionModal(false);
+      setSectionFormData({
         name: '',
-        semester: '',
         batchId: '',
-        instructorId: '',
       });
       loadData();
     } catch (error) {
@@ -135,29 +162,49 @@ const Batches = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ethiopian Academic Sections</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Batch & Section Management</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Manage RCD/ECD batch sections (Semesters I, II, III) and assign instructors
+            Create batches (RCD/ECD) with Ethiopian calendar year, then add sections
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Create Section</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowCreateBatchModal(true)}
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Batch</span>
+          </button>
+          <button
+            onClick={() => setShowCreateSectionModal(true)}
+            className="flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Section</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Batches</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{batches.length}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-blue-500">
+              <School className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Sections</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">{sections.length}</p>
             </div>
-            <div className="p-3 rounded-lg bg-blue-500">
+            <div className="p-3 rounded-lg bg-indigo-500">
               <School className="h-6 w-6 text-white" />
             </div>
           </div>
@@ -186,8 +233,71 @@ const Batches = () => {
         </div>
       </div>
 
+      {/* Batches List */}
+      <div className="space-y-6">
+        <h2 className="text-lg font-bold text-gray-900">Batches</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {batches.map((batch) => (
+            <div
+              key={batch.id}
+              className="bg-white rounded-lg border-2 border-blue-200 p-6 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900">{batch.name}</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                      {batch.type === 'RCD' ? 'Regular' : 'Extension'}
+                    </span>
+                    <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 font-medium">
+                      {batch.year} E.C.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm('Delete this batch?')) {
+                      apiClient.delete(`/api/admin/batches/${batch.id}`)
+                        .then(() => {
+                          toast.success('Batch deleted');
+                          loadData();
+                        })
+                        .catch(() => toast.error('Failed to delete'));
+                    }
+                  }}
+                  className="text-red-600 hover:text-red-900"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="text-sm text-gray-600">
+                <p>{sections.filter(s => s.batchId === batch.id).length} sections</p>
+              </div>
+            </div>
+          ))}
+          {batches.length === 0 && (
+            <div className="col-span-full text-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
+              <School className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Batches Yet</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Create your first batch (RCD or ECD) to get started
+              </p>
+              <button
+                onClick={() => setShowCreateBatchModal(true)}
+                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Create Batch</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Sections Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="space-y-6">
+        <h2 className="text-lg font-bold text-gray-900">Sections</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sections.map((section) => (
           <div
             key={section.id}
@@ -203,24 +313,6 @@ const Batches = () => {
                   }
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   placeholder="Section Name"
-                />
-                <input
-                  type="text"
-                  value={editingSection.courseCode}
-                  onChange={(e) =>
-                    setEditingSection({ ...editingSection, courseCode: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Course Code"
-                />
-                <textarea
-                  value={editingSection.description}
-                  onChange={(e) =>
-                    setEditingSection({ ...editingSection, description: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Description"
-                  rows="3"
                 />
                 <div className="flex space-x-2">
                   <button
@@ -246,14 +338,9 @@ const Batches = () => {
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900">{section.name}</h3>
                       <div className="flex items-center gap-2 mt-2">
-                        {section.semester && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
-                            Semester {section.semester}
-                          </span>
-                        )}
-                        {section.batch?.name && (
-                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 font-medium">
-                            {section.batch.name}
+                        {section.batch && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
+                            {section.batch.name} - {section.batch.year} E.C.
                           </span>
                         )}
                       </div>
@@ -278,14 +365,49 @@ const Batches = () => {
 
                   <div className="flex items-center justify-between text-sm mt-4">
                     <div className="text-gray-600">
-                      <p className="text-xs">Instructor:</p>
-                      <p className="font-medium">{section.instructor?.user?.username || 'Not assigned'}</p>
+                      <p className="text-xs text-gray-500">Instructor:</p>
+                      <p className="font-medium text-gray-900">
+                        {section.instructor?.user 
+                          ? `${section.instructor.user.firstName} ${section.instructor.user.lastName}`
+                          : 'Not assigned'}
+                      </p>
+                      {section.instructor?.user && (
+                        <p className="text-xs text-gray-500">{section.instructor.user.email}</p>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2 text-gray-600">
                       <Users className="h-4 w-4" />
                       <span>{section.students?.length || 0} students</span>
                     </div>
                   </div>
+
+                  {/* Students List */}
+                  {section.students && section.students.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-xs text-gray-500 mb-2">Students:</p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {section.students.map((student) => (
+                          <div key={student.id} className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                                <span className="text-xs font-semibold text-blue-700">
+                                  {student.user?.firstName?.charAt(0)}{student.user?.lastName?.charAt(0)}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {student.user?.firstName} {student.user?.lastName}
+                                </p>
+                                {student.studentId && (
+                                  <p className="text-gray-500">ID: {student.studentId}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-gray-200 p-4 bg-gray-50">
@@ -310,99 +432,148 @@ const Batches = () => {
             <School className="h-16 w-16 mx-auto mb-4 text-gray-400" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Sections Yet</h3>
             <p className="text-sm text-gray-600 mb-6">
-              Create semester sections for RCD/ECD batches (Semesters I, II, III)
+              Create sections under existing batches
             </p>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => setShowCreateSectionModal(true)}
               className="inline-flex items-center space-x-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+              disabled={batches.length === 0}
             >
               <Plus className="h-4 w-4" />
               <span>Create Section</span>
             </button>
+            {batches.length === 0 && (
+              <p className="text-xs text-gray-500 mt-2">Create a batch first</p>
+            )}
           </div>
         )}
+        </div>
       </div>
 
-      {/* Create Section Modal */}
-      {showCreateModal && (
+      {/* Create Batch Modal */}
+      {showCreateBatchModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Batch</h2>
+            <form onSubmit={handleCreateBatch} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Batch Name *
+                </label>
+                <input
+                  type="text"
+                  value={batchFormData.name}
+                  onChange={(e) => setBatchFormData({ ...batchFormData, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., 2024 RCD Batch"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type *
+                </label>
+                <select
+                  value={batchFormData.type}
+                  onChange={(e) => setBatchFormData({ ...batchFormData, type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select Type</option>
+                  <option value="RCD">RCD (Regular)</option>
+                  <option value="ECD">ECD (Extension)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Year (Ethiopian Calendar) *
+                </label>
+                <input
+                  type="number"
+                  value={batchFormData.year}
+                  onChange={(e) => setBatchFormData({ ...batchFormData, year: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., 2017"
+                  min="2000"
+                  max="2100"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Ethiopian Calendar year</p>
+              </div>
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Create Batch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateBatchModal(false)}
+                  className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Section Modal */}
+      {showCreateSectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Section</h2>
             <form onSubmit={handleCreateSection} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Batch *
+                </label>
+                <select
+                  value={sectionFormData.batchId}
+                  onChange={(e) => setSectionFormData({ ...sectionFormData, batchId: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black"
+                  required
+                >
+                  <option value="">Select Batch</option>
+                  {batches.map((batch) => (
+                    <option key={batch.id} value={batch.id}>
+                      {batch.name} ({batch.type}) - {batch.year} E.C.
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose which batch this section belongs to
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Section Name *
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="e.g., CS101 Section A"
+                  value={sectionFormData.name}
+                  onChange={(e) => setSectionFormData({ ...sectionFormData, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black"
+                  placeholder="e.g., Section A, Morning Class"
                   required
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Code
-                </label>
-                <input
-                  type="text"
-                  value={formData.courseCode}
-                  onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="e.g., CS101"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="Section description"
-                  rows="3"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
-                  <select
-                    value={formData.term}
-                    onChange={(e) => setFormData({ ...formData, term: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-                  >
-                    <option value="">Select Term</option>
-                    <option value="Fall">Fall</option>
-                    <option value="Spring">Spring</option>
-                    <option value="Summer">Summer</option>
-                    <option value="Winter">Winter</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
-                    placeholder="2025"
-                  />
-                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Note: Courses will be added to batches, not individual sections
+                </p>
               </div>
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="flex-1 bg-black text-white py-2 rounded-lg hover:bg-gray-800"
                 >
                   Create Section
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowCreateSectionModal(false)}
+                  className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>

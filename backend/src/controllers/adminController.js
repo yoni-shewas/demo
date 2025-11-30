@@ -13,7 +13,7 @@ const SALT_ROUNDS = 10;
  */
 export async function createUser(req, res) {
   try {
-    const { username, email, password, role, firstName, lastName, studentId } = req.body;
+    const { username, email, password, role, firstName, lastName, studentId, batchId, sectionId } = req.body;
 
     // Validation
     if (!username || !email || !password || !role) {
@@ -67,7 +67,9 @@ export async function createUser(req, res) {
         ...(normalizedRole === 'STUDENT' && {
           studentProfile: { 
             create: { 
-              studentId: studentId || null 
+              studentId: studentId || null,
+              batchId: batchId || null,
+              sectionId: sectionId || null,
             } 
           },
         }),
@@ -439,11 +441,37 @@ export async function getAllUsers(req, res) {
               studentId: true,
               batchId: true,
               sectionId: true,
+              batch: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  year: true,
+                },
+              },
+              section: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           instructorProfile: {
             select: {
               id: true,
+              sections: {
+                select: {
+                  id: true,
+                  name: true,
+                  batch: {
+                    select: {
+                      name: true,
+                      type: true,
+                    },
+                  },
+                },
+              },
             },
           },
           adminProfile: {
@@ -486,7 +514,7 @@ export async function getAllUsers(req, res) {
 export async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { username, email, password, role, firstName, lastName } = req.body;
+    const { username, email, password, role, firstName, lastName, studentProfile } = req.body;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -549,6 +577,27 @@ export async function updateUser(req, res) {
         createdAt: true,
       },
     });
+
+    // Update student profile batch/section if provided
+    if (studentProfile && user.role === 'STUDENT') {
+      const studentRecord = await prisma.student.findUnique({
+        where: { userId: id },
+      });
+
+      if (studentRecord) {
+        const studentUpdateData = {};
+        if (studentProfile.batchId !== undefined) studentUpdateData.batchId = studentProfile.batchId || null;
+        if (studentProfile.sectionId !== undefined) studentUpdateData.sectionId = studentProfile.sectionId || null;
+
+        if (Object.keys(studentUpdateData).length > 0) {
+          await prisma.student.update({
+            where: { id: studentRecord.id },
+            data: studentUpdateData,
+          });
+          logger.info(`Updated student batch/section for: ${user.email}`);
+        }
+      }
+    }
 
     logger.info(`Admin updated user: ${user.email} (${user.role})`);
 

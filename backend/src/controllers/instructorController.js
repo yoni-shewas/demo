@@ -82,9 +82,26 @@ export async function getSections(req, res) {
         sections: {
           include: {
             batch: true,
-            students: true,
-            assignments: true,
-            lessons: true,
+            students: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                students: true,
+                assignments: true,
+                lessons: true,
+              },
+            },
           },
         },
       },

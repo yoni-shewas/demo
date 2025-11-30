@@ -105,15 +105,32 @@ const StudentDashboard = () => {
               Welcome back, {user?.firstName || 'Student'}. Here's your progress overview.
             </p>
           </div>
-          {profile?.studentId && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-              <p className="text-xs text-blue-600 font-medium">Student ID</p>
-              <p className="text-lg font-bold text-blue-900">{profile.studentId}</p>
-              {profile?.section?.semester && (
-                <p className="text-xs text-blue-700 mt-0.5">Semester {profile.section.semester}</p>
-              )}
-            </div>
-          )}
+          <div className="flex gap-3">
+            {profile?.studentId && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                <p className="text-xs text-blue-600 font-medium">Student ID</p>
+                <p className="text-lg font-bold text-blue-900">{profile.studentId}</p>
+              </div>
+            )}
+            {profile?.batch && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+                <p className="text-xs text-green-600 font-medium">Batch</p>
+                <p className="text-sm font-bold text-green-900">{profile.batch.name}</p>
+                <p className="text-xs text-green-700 mt-0.5">{profile.batch.type} - {profile.batch.year} E.C.</p>
+              </div>
+            )}
+            {profile?.section && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2">
+                <p className="text-xs text-purple-600 font-medium">Section</p>
+                <p className="text-sm font-bold text-purple-900">{profile.section.name}</p>
+                {profile.section.instructor?.user && (
+                  <p className="text-xs text-purple-700 mt-0.5">
+                    Instructor: {profile.section.instructor.user.firstName} {profile.section.instructor.user.lastName}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

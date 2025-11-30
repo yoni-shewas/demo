@@ -33,6 +33,7 @@ import StudentAssignments from './pages/student/Assignments';
 import StudentSubmissions from './pages/student/Submissions';
 
 // Public Pages
+import LandingPage from './pages/LandingPage';
 import PublicCodeEditor from './pages/PublicCodeEditor';
 
 function App() {
@@ -41,7 +42,9 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/code" element={<PublicCodeEditor />} />
+          <Route path="/test-editor" element={<PublicCodeEditor />} />
           <Route path="/login" element={<Login />} />
           
           <Route 
@@ -54,21 +57,19 @@ function App() {
           />
           
           <Route
-            path="/"
             element={
               <ProtectedRoute>
                 <Layout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="code" element={<CodeEditor />} />
-            <Route path="assignments" element={<Assignments />} />
-            <Route path="submissions" element={<Submissions />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/code-editor" element={<CodeEditor />} />
+            <Route path="/assignments" element={<Assignments />} />
+            <Route path="/submissions" element={<Submissions />} />
             
             <Route
-              path="students"
+              path="/students"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN', 'INSTRUCTOR']}>
                   <Students />
@@ -77,7 +78,7 @@ function App() {
             />
             
             <Route
-              path="sections"
+              path="/sections"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN', 'INSTRUCTOR']}>
                   <Sections />
@@ -86,7 +87,7 @@ function App() {
             />
             
             <Route
-              path="users"
+              path="/users"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <Users />
@@ -96,7 +97,7 @@ function App() {
 
             {/* Admin Panel Routes */}
             <Route
-              path="admin/users"
+              path="/admin/users"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminUsers />
@@ -104,7 +105,7 @@ function App() {
               }
             />
             <Route
-              path="admin/batches"
+              path="/admin/batches"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminBatches />
@@ -112,7 +113,7 @@ function App() {
               }
             />
             <Route
-              path="admin/lessons"
+              path="/admin/lessons"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminLessons />
@@ -122,7 +123,7 @@ function App() {
 
             {/* Instructor Portal Routes */}
             <Route
-              path="instructor/lessons"
+              path="/instructor/lessons"
               element={
                 <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
                   <InstructorLessons />
@@ -130,7 +131,7 @@ function App() {
               }
             />
             <Route
-              path="instructor/assignments"
+              path="/instructor/assignments"
               element={
                 <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
                   <InstructorAssignments />
@@ -138,7 +139,7 @@ function App() {
               }
             />
             <Route
-              path="instructor/submissions"
+              path="/instructor/submissions"
               element={
                 <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
                   <InstructorSubmissions />
@@ -148,7 +149,7 @@ function App() {
 
             {/* Student Workspace Routes */}
             <Route
-              path="student/code"
+              path="/student/code"
               element={
                 <ProtectedRoute allowedRoles={['STUDENT']}>
                   <StudentCodeWorkspace />
@@ -156,7 +157,7 @@ function App() {
               }
             />
             <Route
-              path="student/code-old"
+              path="/student/code-old"
               element={
                 <ProtectedRoute allowedRoles={['STUDENT']}>
                   <StudentCode />
@@ -164,7 +165,7 @@ function App() {
               }
             />
             <Route
-              path="student/lessons"
+              path="/student/lessons"
               element={
                 <ProtectedRoute allowedRoles={['STUDENT']}>
                   <StudentLessons />
@@ -172,7 +173,7 @@ function App() {
               }
             />
             <Route
-              path="student/assignments"
+              path="/student/assignments"
               element={
                 <ProtectedRoute allowedRoles={['STUDENT']}>
                   <StudentAssignments />
@@ -180,7 +181,7 @@ function App() {
               }
             />
             <Route
-              path="student/submissions"
+              path="/student/submissions"
               element={
                 <ProtectedRoute allowedRoles={['STUDENT']}>
                   <StudentSubmissions />
@@ -189,7 +190,7 @@ function App() {
             />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         
         {/* Toast Notifications */}

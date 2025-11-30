@@ -6,6 +6,8 @@ import * as adminService from '../../services/adminService';
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -23,10 +25,13 @@ const Users = () => {
     role: 'STUDENT',
     firstName: '',
     lastName: '',
+    batchId: '',
+    sectionId: '',
   });
 
   useEffect(() => {
     loadUsers();
+    loadBatchesAndSections();
   }, []);
 
   useEffect(() => {
@@ -44,6 +49,25 @@ const Users = () => {
       toast.error('Failed to load users');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBatchesAndSections = async () => {
+    try {
+      const [batchesRes, sectionsRes] = await Promise.allSettled([
+        adminService.getAllBatches(),
+        adminService.getAllSections(),
+      ]);
+
+      if (batchesRes.status === 'fulfilled') {
+        setBatches(batchesRes.value.batches || batchesRes.value || []);
+      }
+
+      if (sectionsRes.status === 'fulfilled') {
+        setSections(sectionsRes.value.sections || sectionsRes.value || []);
+      }
+    } catch (error) {
+      console.error('Error loading batches/sections:', error);
     }
   };
 
@@ -83,6 +107,8 @@ const Users = () => {
         role: 'STUDENT',
         firstName: '',
         lastName: '',
+        batchId: '',
+        sectionId: '',
       });
       loadUsers();
     } catch (error) {
@@ -300,6 +326,9 @@ const Users = () => {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Batch/Section
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -413,6 +442,94 @@ const Users = () => {
                       >
                         {u.role}
                       </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {u.role === 'STUDENT' ? (
+                      editingUser?.id === u.id ? (
+                        <div className="space-y-1">
+                          <select
+                            value={editingUser.studentProfile?.batchId || ''}
+                            onChange={(e) => {
+                              const batchId = e.target.value;
+                              setEditingUser({
+                                ...editingUser,
+                                studentProfile: {
+                                  ...editingUser.studentProfile,
+                                  batchId,
+                                  sectionId: '', // Reset section when batch changes
+                                },
+                              });
+                            }}
+                            className="border border-gray-300 rounded px-2 py-1 text-xs w-full"
+                          >
+                            <option value="">No Batch</option>
+                            {batches.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name} ({b.type})
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={editingUser.studentProfile?.sectionId || ''}
+                            onChange={(e) =>
+                              setEditingUser({
+                                ...editingUser,
+                                studentProfile: {
+                                  ...editingUser.studentProfile,
+                                  sectionId: e.target.value,
+                                },
+                              })
+                            }
+                            className="border border-gray-300 rounded px-2 py-1 text-xs w-full"
+                            disabled={!editingUser.studentProfile?.batchId}
+                          >
+                            <option value="">No Section</option>
+                            {sections
+                              .filter((s) => s.batchId === editingUser.studentProfile?.batchId)
+                              .map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="text-xs">
+                          {u.studentProfile?.batch && (
+                            <div className="inline-flex px-2 py-0.5 rounded bg-green-100 text-green-700 mb-1">
+                              {u.studentProfile.batch.name}
+                            </div>
+                          )}
+                          {u.studentProfile?.section && (
+                            <div className="inline-flex px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                              {u.studentProfile.section.name}
+                            </div>
+                          )}
+                          {!u.studentProfile?.batch && !u.studentProfile?.section && (
+                            <span className="text-gray-400">Not assigned</span>
+                          )}
+                        </div>
+                      )
+                    ) : u.role === 'INSTRUCTOR' ? (
+                      <div className="text-xs">
+                        {u.instructorProfile?.sections?.length > 0 ? (
+                          <div className="space-y-1">
+                            {u.instructorProfile.sections.slice(0, 2).map((sec) => (
+                              <div key={sec.id} className="inline-flex px-2 py-0.5 rounded bg-purple-100 text-purple-700 mr-1">
+                                {sec.name}
+                              </div>
+                            ))}
+                            {u.instructorProfile.sections.length > 2 && (
+                              <span className="text-gray-500 text-xs">+{u.instructorProfile.sections.length - 2} more</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">No sections</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">N/A</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -573,7 +690,7 @@ const Users = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value, batchId: '', sectionId: '' })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
                   required
                 >
@@ -582,6 +699,56 @@ const Users = () => {
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
+              
+              {/* Show batch and section selection only for students */}
+              {formData.role === 'STUDENT' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Batch (Optional)
+                    </label>
+                    <select
+                      value={formData.batchId}
+                      onChange={(e) => setFormData({ ...formData, batchId: e.target.value, sectionId: '' })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
+                    >
+                      <option value="">Select Batch</option>
+                      {batches.map((batch) => (
+                        <option key={batch.id} value={batch.id}>
+                          {batch.name} ({batch.type}) - {batch.year} E.C.
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {formData.batchId && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Section (Optional)
+                      </label>
+                      <select
+                        value={formData.sectionId}
+                        onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-black focus:border-transparent"
+                      >
+                        <option value="">Select Section</option>
+                        {sections
+                          .filter((section) => section.batchId === formData.batchId)
+                          .map((section) => (
+                            <option key={section.id} value={section.id}>
+                              {section.name}
+                            </option>
+                          ))}
+                      </select>
+                      {sections.filter((s) => s.batchId === formData.batchId).length === 0 && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          No sections available for this batch
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"

@@ -69,7 +69,28 @@ export const getDashboardStats = async () => {
   return response.data;
 };
 
-// Sections/Batches Management
+// Batches Management
+export const getAllBatches = async () => {
+  const response = await apiClient.get('/api/admin/batches');
+  return response.data;
+};
+
+export const createBatch = async (batchData) => {
+  const response = await apiClient.post('/api/admin/batches', batchData);
+  return response.data;
+};
+
+export const updateBatch = async (batchId, batchData) => {
+  const response = await apiClient.put(`/api/admin/batches/${batchId}`, batchData);
+  return response.data;
+};
+
+export const deleteBatch = async (batchId) => {
+  const response = await apiClient.delete(`/api/admin/batches/${batchId}`);
+  return response.data;
+};
+
+// Sections Management
 export const getAllSections = async () => {
   const response = await apiClient.get('/api/admin/sections');
   return response.data;
@@ -105,6 +126,10 @@ export default {
   exportUsersCSV,
   exportUsersSQL,
   getDashboardStats,
+  getAllBatches,
+  createBatch,
+  updateBatch,
+  deleteBatch,
   getAllSections,
   createSection,
   updateSection,
