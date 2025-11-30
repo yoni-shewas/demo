@@ -61,12 +61,12 @@ const Lessons = () => {
 
     // Apply instructor filter
     if (instructorFilter !== 'ALL') {
-      filtered = filtered.filter((l) => l.instructorId === instructorFilter);
+      filtered = filtered.filter((l) => l.instructorId == instructorFilter);
     }
 
     // Apply section filter
     if (sectionFilter !== 'ALL') {
-      filtered = filtered.filter((l) => l.sectionId === sectionFilter);
+      filtered = filtered.filter((l) => l.sectionId == sectionFilter);
     }
 
     // Apply search
@@ -84,12 +84,12 @@ const Lessons = () => {
   };
 
   const getInstructorName = (instructorId) => {
-    const instructor = instructors.find((i) => i.id === instructorId);
+    const instructor = instructors.find((i) => i.id == instructorId);
     return instructor ? `${instructor.firstName} ${instructor.lastName}` : 'Unknown';
   };
 
   const getSectionName = (sectionId) => {
-    const section = sections.find((s) => s.id === sectionId);
+    const section = sections.find((s) => s.id == sectionId);
     return section ? section.name : 'Unknown';
   };
 

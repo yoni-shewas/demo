@@ -1,47 +1,8 @@
-# 🎨 Frontend Documentation - SMU Code Platform
+# Frontend Documentation
 
-[![React](https://img.shields.io/badge/React-19.2-blue)]()
-[![Vite](https://img.shields.io/badge/Vite-7.2-purple)]()
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-cyan)]()
+React 19 + Vite application with TailwindCSS and Monaco Editor.
 
----
-
-## 📋 Overview
-
-Modern React application with Vite, featuring glassmorphism design, Monaco code editor, and role-based dashboards.
-
-**Key Features:**
-- 🎨 Glassmorphism UI with smooth animations
-- ⚡ Vite-powered fast builds
-- 📱 Fully responsive (mobile-first)
-- 💻 Monaco Editor integration
-- 🎯 Role-based interfaces
-- 🔒 Protected routes
-
----
-
-## 📁 Project Structure
-
-```
-frontend/
-├── src/
-│   ├── components/      # Reusable UI components
-│   ├── pages/          # Page components
-│   │   ├── admin/      # Admin pages
-│   │   ├── instructor/ # Instructor pages
-│   │   └── student/    # Student pages
-│   ├── context/        # React Context (Auth)
-│   ├── services/       # API services
-│   ├── hooks/          # Custom hooks
-│   └── utils/          # Utilities
-├── public/
-├── index.html
-└── package.json
-```
-
----
-
-## 🚀 Installation
+## Setup
 
 ```bash
 cd frontend
@@ -50,258 +11,271 @@ cp .env.example .env
 yarn dev
 ```
 
-**Environment Variables:**
+Application runs on http://localhost:5173
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/       # Reusable components
+│   ├── pages/           # Page components
+│   │   ├── admin/       # Admin pages
+│   │   ├── instructor/  # Instructor pages
+│   │   └── student/     # Student pages
+│   ├── context/         # React Context (Auth)
+│   ├── services/        # API service functions
+│   ├── utils/           # Helper functions
+│   ├── App.jsx          # Main app component
+│   └── main.jsx         # Entry point
+├── public/              # Static assets
+└── index.html
+```
+
+## Environment Variables
+
 ```env
 VITE_API_URL=http://localhost:3000
-VITE_APP_NAME=SMU Code Platform
 ```
 
----
+## Technology Stack
 
-## 🎯 Key Pages
+- React 19.2.0
+- Vite 7.2.2
+- React Router DOM 7.1.3
+- TailwindCSS 4.1.17
+- Monaco Editor
+- Axios
+- React-PDF
+- Lucide React (icons)
+- React Toastify (notifications)
 
-### Public Pages
-- **Landing Page** (`/`) - Marketing page with features
-- **Login** (`/login`) - Authentication
-- **Public Code Editor** (`/code`) - Try without login
+## Key Features
 
-### Protected Pages
-- **Dashboard** - Role-specific dashboards
-- **Admin Panel** - User/batch management
-- **Instructor Portal** - Lessons/assignments
-- **Student Workspace** - Code editor, submissions
+### Authentication
+- JWT-based auth with 24-hour session
+- Persists across page refreshes
+- Auto-logout on token expiry
+- Context-based state management
 
----
+### Role-Based Routing
+- Protected routes based on user role
+- Automatic redirects
+- Role-specific dashboards
 
-## 🧩 Core Components
+### Pages
 
-### Layout Components
-```jsx
-<Layout>           // Main wrapper
-<Sidebar />        // Navigation
-<Navbar />         // Header
-<ProtectedRoute /> // Route guard
-```
+**Public**
+- Landing page
+- Login
 
-### UI Components
-```jsx
-<Button variant="primary" size="md" />
-<Card />
-<Modal />
-<Table />
-<Input />
-<FileUpload />
-```
+**Admin**
+- Dashboard
+- User management (CRUD, CSV import/export)
+- Batch management
+- Section management
+- Lessons overview
+- Submissions overview
 
----
+**Instructor**
+- Dashboard
+- Assigned sections
+- Lesson management (create, edit, delete)
+- Assignment management (create, edit, delete)
+- Submission review and grading
 
-## 🛣️ Routing
+**Student**
+- Dashboard
+- Lessons list
+- Assignments list
+- Code workspace (Monaco editor)
+- Submission history
 
-```jsx
-Routes:
-  / - Landing Page (public)
-  /login - Login (public)
-  /code - Public Code Editor (public)
-  
-  /dashboard - Dashboard (protected)
-  /admin/* - Admin routes (ADMIN only)
-  /instructor/* - Instructor routes (INSTRUCTOR only)
-  /student/* - Student routes (STUDENT only)
-```
+## Components
 
----
+**Layout Components**
+- `DashboardLayout` - Main layout with sidebar
+- `Navbar` - Navigation bar
+- `Sidebar` - Role-based navigation
+- `ProtectedRoute` - Route guards
 
-## 🔐 Authentication
+**UI Components**
+- `Button`, `Input`, `Card` - Base components
+- `Modal` - Modal dialogs
+- `Table` - Data tables
+- `FileUpload` - File upload component
 
-```jsx
-// Usage
-const { user, login, logout, isAuthenticated } = useAuth();
+## Services
 
-// Login
-await login(email, password);
+**API Services** (`src/services/`)
+- `adminService.js` - Admin API calls
+- `instructorService.js` - Instructor API calls
+- `studentService.js` - Student API calls
 
-// Access user
-console.log(user.role); // ADMIN, INSTRUCTOR, STUDENT
+**API Client** (`src/utils/apiClient.js`)
+- Axios instance with interceptors
+- Auto-attaches JWT token
+- Handles 401 errors
 
-// Logout
-await logout();
-```
+## State Management
 
----
-
-## 🌐 API Integration
+**AuthContext** (`src/context/AuthContext.jsx`)
+- User authentication state
+- Login/logout functions
+- Token verification
+- 24-hour session persistence
 
 ```javascript
-// services/api.js
-const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  withCredentials: true
-});
+import { useAuth } from './context/AuthContext';
 
-// Auto-attach token
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+const { user, login, logout, loading } = useAuth();
 ```
 
----
+## Routing
 
-## 💻 Code Editor
+```javascript
+/ - Landing page
+/login - Login page
+/admin/* - Admin routes
+/instructor/* - Instructor routes  
+/student/* - Student routes
+```
 
-**Monaco Editor Features:**
-- Multi-language support (Python, JS, Java, C++, C)
-- Syntax highlighting
-- IntelliSense
-- Theme selection
-- Code execution
-- Input/Output panels
+Protected routes redirect to login if not authenticated.
 
-```jsx
+## Monaco Editor Integration
+
+Code editor with multi-language support:
+
+```javascript
+import Editor from '@monaco-editor/react';
+
 <Editor
-  language={language}
+  height="400px"
+  language="python"
   value={code}
   onChange={setCode}
   theme="vs-dark"
-  options={{
-    fontSize: 14,
-    minimap: { enabled: true }
-  }}
 />
 ```
 
----
+## PDF Viewer
 
-## 📱 Responsive Design
+```javascript
+import { Document, Page } from 'react-pdf';
 
-**Breakpoints:**
-```
-sm: 640px  (mobile)
-md: 768px  (tablet)
-lg: 1024px (laptop)
-xl: 1280px (desktop)
+<Document file={pdfUrl}>
+  <Page pageNumber={pageNumber} />
+</Document>
 ```
 
-**Patterns:**
-```jsx
-// Responsive grid
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+## Form Handling
 
-// Responsive text
-<h1 className="text-3xl sm:text-4xl lg:text-6xl">
+Forms use controlled components with state:
 
-// Hide on mobile
-<div className="hidden lg:block">
+```javascript
+const [formData, setFormData] = useState({
+  name: '',
+  email: ''
+});
 
-// Mobile menu
-<button className="lg:hidden">
+const handleChange = (e) => {
+  setFormData({
+    ...formData,
+    [e.target.name]: e.target.value
+  });
+};
 ```
 
----
+## API Integration
 
-## 🎨 Styling
+```javascript
+import * as adminService from '../services/adminService';
 
-**TailwindCSS + Glassmorphism:**
-```jsx
-<div className="backdrop-blur-xl bg-white/60 border border-white/40 rounded-2xl p-8 shadow-2xl">
+// Get users
+const users = await adminService.getAllUsers();
+
+// Create user
+await adminService.createUser(userData);
 ```
 
-**Global Styles:**
-- Smooth scrolling
-- Custom animations
-- Fade-in effects
-- Responsive utilities
+## Notifications
 
----
+React Toastify for user feedback:
 
-## ⚡ Performance
+```javascript
+import { toast } from 'react-toastify';
 
-**Optimizations:**
-- Code splitting with lazy loading
-- Memoization (useMemo, useCallback)
-- Virtual scrolling for large lists
-- Optimized bundle chunks
-
-```jsx
-// Lazy load
-const AdminUsers = lazy(() => import('./pages/admin/Users'));
-
-// Memoize
-const sorted = useMemo(() => data.sort(), [data]);
+toast.success('Operation successful!');
+toast.error('Operation failed!');
+toast.info('Processing...');
 ```
 
----
+## Styling
 
-## 🚀 Deployment
+TailwindCSS utility classes:
+
+```javascript
+<div className="bg-white rounded-lg shadow-md p-6">
+  <h1 className="text-2xl font-bold text-gray-900">Title</h1>
+  <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+    Click Me
+  </button>
+</div>
+```
+
+## Build
 
 ```bash
-# Build
+# Development
+yarn dev
+
+# Production build
 yarn build
 
-# Preview
+# Preview production build
 yarn preview
 ```
 
-**Output:** `dist/` folder ready for deployment
+## Production Deployment
 
-**Deploy to:**
-- Netlify / Vercel (automatic)
-- Nginx / Apache (static)
-- CDN
+1. Build the application:
+```bash
+yarn build
+```
 
-**Nginx Config:**
+2. Serve the `dist/` folder with nginx:
+
 ```nginx
-location / {
-    try_files $uri /index.html;
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /path/to/frontend/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api {
+        proxy_pass http://localhost:3000\;
+    }
 }
 ```
 
----
+## Common Issues
 
-## 📦 Dependencies
+**API connection failed**: Check VITE_API_URL in .env
 
-**Core:**
-- react, react-dom, react-router-dom
-- vite
-- axios
-- @monaco-editor/react
+**Session lost on refresh**: Ensure token is in localStorage
 
-**UI:**
-- tailwindcss
-- lucide-react (icons)
-- react-toastify (notifications)
+**Monaco editor not loading**: Check internet connection (CDN)
 
-**Utilities:**
-- class-variance-authority
-- clsx, tailwind-merge
+**Build fails**: Clear node_modules and reinstall
 
----
+## Performance
 
-## 🔧 Scripts
-
-```bash
-yarn dev          # Development server
-yarn build        # Production build
-yarn preview      # Preview build
-yarn lint         # Run ESLint
-```
-
----
-
-## 📞 Support
-
-- Check browser console for errors
-- Verify API URL in .env
-- Clear cache if issues persist
-- Review component documentation
-
----
-
-<div align="center">
-
-**Modern React Frontend**
-
-*Fast • Responsive • Beautiful*
-
-</div>
+- Lazy loading for routes
+- Code splitting with Vite
+- Optimized images
+- Memoized components where needed

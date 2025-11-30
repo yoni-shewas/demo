@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import apiClient from "../../utils/apiClient";
+import * as instructorService from "../../services/instructorService";
 import Editor from "@monaco-editor/react";
 
 const LANGUAGES = {
@@ -51,15 +52,30 @@ const AssignmentsNew = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [assignmentsRes, sectionsRes] = await Promise.all([
+      const [assignmentsRes, sectionsRes, profileRes] = await Promise.allSettled([
         apiClient.get("/api/instructor/assignments"),
         apiClient.get("/api/instructor/sections"),
+        instructorService.getProfile(),
       ]);
 
-      setAssignments(
-        assignmentsRes.data.data || assignmentsRes.data.assignments || []
-      );
-      setSections(sectionsRes.data.data || sectionsRes.data.sections || []);
+      if (assignmentsRes.status === 'fulfilled') {
+        setAssignments(
+          assignmentsRes.value.data.data || assignmentsRes.value.data.assignments || []
+        );
+      }
+
+      // Prioritize instructor's assigned sections from profile
+      if (profileRes.status === 'fulfilled' && profileRes.value.sections) {
+        const profileSections = profileRes.value.sections;
+        setSections(Array.isArray(profileSections) ? profileSections : []);
+      } else if (sectionsRes.status === 'fulfilled') {
+        // Fallback to sections API (should already be filtered to instructor's sections)
+        const sectionData = sectionsRes.value.data?.data || sectionsRes.value.data?.sections || [];
+        setSections(Array.isArray(sectionData) ? sectionData : []);
+      } else {
+        // No sections available
+        setSections([]);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load assignments");

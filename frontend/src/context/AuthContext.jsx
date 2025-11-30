@@ -20,9 +20,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const verifyAuth = async () => {
-    const token = localStorage.getItem('token');
+    // Check both localStorage and sessionStorage for token
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     
     if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    // Check if token is expired
+    const tokenExpiry = localStorage.getItem('tokenExpiry') || sessionStorage.getItem('tokenExpiry');
+    if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
+      // Token expired, clear storage
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('tokenExpiry');
       setLoading(false);
       return;
     }
@@ -33,6 +48,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('tokenExpiry');
       setUser(null);
     } finally {
       setLoading(false);
@@ -48,13 +67,16 @@ export const AuthProvider = ({ children }) => {
 
       const { token, user: userData } = response.data;
       
+      // Calculate expiry time (24 hours from now)
+      const expiryTime = Date.now() + (24 * 60 * 60 * 1000); // 24 hours in milliseconds
+      
+      // Always save to localStorage for persistence across refreshes
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('tokenExpiry', expiryTime.toString());
+      
       if (rememberMe) {
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData));
         localStorage.setItem('rememberMe', 'true');
-      } else {
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('user', JSON.stringify(userData));
       }
       
       setUser(userData);
@@ -87,8 +109,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('rememberMe');
+    localStorage.removeItem('tokenExpiry');
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('tokenExpiry');
     setUser(null);
   };
 

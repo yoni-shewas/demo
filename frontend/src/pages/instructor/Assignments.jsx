@@ -47,14 +47,17 @@ const Assignments = () => {
         setAssignments(assignmentsRes.value.assignments || assignmentsRes.value.data || []);
       }
 
-      if (sectionsRes.status === 'fulfilled') {
-        const sectionData = sectionsRes.value.data?.sections || sectionsRes.value.data || [];
-        setSections(Array.isArray(sectionData) ? sectionData : []);
-      }
-
+      // Prioritize instructor's assigned sections from profile
       if (profileRes.status === 'fulfilled' && profileRes.value.sections) {
         const profileSections = profileRes.value.sections;
         setSections(Array.isArray(profileSections) ? profileSections : []);
+      } else if (sectionsRes.status === 'fulfilled') {
+        // Fallback to sections API (should already be filtered to instructor's sections)
+        const sectionData = sectionsRes.value.data?.data || sectionsRes.value.data?.sections || [];
+        setSections(Array.isArray(sectionData) ? sectionData : []);
+      } else {
+        // No sections available
+        setSections([]);
       }
 
       toast.success('Assignments loaded successfully');
@@ -70,7 +73,7 @@ const Assignments = () => {
     if (sectionFilter === 'ALL') {
       setFilteredAssignments(assignments);
     } else {
-      setFilteredAssignments(assignments.filter((a) => a.sectionId === sectionFilter));
+      setFilteredAssignments(assignments.filter((a) => a.sectionId == sectionFilter));
     }
   };
 
@@ -136,7 +139,7 @@ const Assignments = () => {
   };
 
   const getSectionName = (sectionId) => {
-    const section = sections.find((s) => s.id === sectionId);
+    const section = sections.find((s) => s.id == sectionId);
     return section ? section.name : 'Unknown Section';
   };
 

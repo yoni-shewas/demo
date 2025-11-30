@@ -1,156 +1,105 @@
-# 🎓 SMU Code Platform
+# SMU Code Platform
 
-> **A Complete Coding & Learning Management System Built for Educational Institutions**
+A coding and learning management system for educational institutions.
 
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue)]()
-[![License](https://img.shields.io/badge/License-Educational-yellow)]()
+## Quick Start
 
----
+```bash
+# 1. Clone and setup database
+git clone <repository-url> && cd codeLan
+cd backend
+yarn install
+cp .env.example .env
+# Edit .env: Set DATABASE_URL to your PostgreSQL credentials
 
-## 📋 Table of Contents
+# 2. Initialize database and create admin
+yarn prisma:generate
+yarn prisma:migrate
+yarn create-admin
+
+# 3. Start Judge0 (optional - for code execution)
+cd docker && docker-compose up -d && cd ..
+
+# 4. Start backend
+yarn dev  # Runs on http://localhost:3000
+
+# 5. In new terminal: Start frontend
+cd ../frontend
+yarn install
+yarn dev  # Runs on http://localhost:5173
+
+# Login: admin@school.edu / admin123
+```
+
+## Table of Contents
 
 - [Overview](#overview)
-- [Key Features](#key-features)
-- [System Architecture](#system-architecture)
+- [Features](#features)
 - [Technology Stack](#technology-stack)
-- [Quick Start](#quick-start)
-- [Documentation](#documentation)
+- [Full Installation](#full-installation)
 - [User Roles](#user-roles)
-- [Security Features](#security-features)
 - [Deployment](#deployment)
-- [Support](#support)
 
----
+## Overview
 
-## 🌟 Overview
+SMU Code Platform is a full-stack LMS designed for coding education on campus networks. Runs offline on local area network with JWT authentication and role-based access control.
 
-SMU Code Platform is a **full-stack, offline-capable Learning Management System (LMS)** designed specifically for coding education in campus environments. Built to run entirely on a **local area network (LAN)**, it provides a fast, secure, and reliable platform for students, instructors, and administrators.
+## Features
 
-### Why SMU Code Platform?
+**Students**
+- Monaco code editor with syntax highlighting
+- Access lessons and materials (PDF support)
+- Submit assignments and track submissions
+- Multi-language support (Python, JavaScript, Java, C++, C, etc.)
 
-- 🌐 **Offline-First**: Runs entirely on campus LAN, no internet required
-- ⚡ **Fast Execution**: Optimized code execution engine with Judge0 integration
-- 🎨 **Modern UI**: Beautiful, responsive interface with glassmorphism design
-- 🔒 **Secure**: Role-based access control with manual authentication
-- 📱 **Responsive**: Works seamlessly on desktop, tablet, and mobile devices
-- 🚀 **Production-Ready**: Load-tested, security-hardened, fully documented
+**Instructors**
+- Create and manage lessons
+- Create assignments with deadlines
+- Review and grade submissions
+- Manage assigned sections
 
----
+**Administrators**
+- User management (manual creation or CSV import)
+- Batch and section management
+- CSV export for users
+- System-wide dashboard
 
-## ✨ Key Features
+## Technology Stack
 
-### For Students
-- 💻 **Monaco Code Editor** - Professional-grade code editor with syntax highlighting
-- 📚 **Structured Lessons** - Access PDFs, tutorials, and learning materials
-- 📝 **Assignment Submission** - Submit code and track submission history
-- 🎯 **Progress Tracking** - Monitor completion rates and grades
-- 🏆 **Multi-Language Support** - Python, JavaScript, Java, C++, C, and more
+**Frontend**
+- React 19 + Vite + React Router
+- TailwindCSS
+- Monaco Editor
+- Axios, React-PDF, Lucide React
 
-### For Instructors
-- 📖 **Lesson Management** - Upload and organize educational content
-- ✏️ **Assignment Creation** - Create coding assignments with deadlines
-- 📊 **Submission Review** - Grade and provide feedback on student work
-- 👥 **Class Management** - Manage sections and student enrollments
-- 📈 **Analytics Dashboard** - Track class performance and engagement
+**Backend**
+- Node.js 18+ + Express
+- PostgreSQL 14+ with Prisma ORM
+- JWT authentication, bcrypt
+- Multer (file uploads), Winston (logging)
+- Helmet, CORS, rate limiting
 
-### For Administrators
-- 👤 **User Management** - Create users individually or via CSV import
-- 🏫 **Batch Management** - Organize students into cohorts and sections
-- 📦 **Bulk Operations** - Import/export users in CSV format
-- 🔧 **System Configuration** - Full platform control and oversight
-- 📊 **Comprehensive Dashboard** - System-wide analytics and monitoring
+**Code Execution**
+- Judge0 CE (Docker-based)
+- Supports 18+ languages
 
----
+## Full Installation
 
-## 🏗️ System Architecture
+**Prerequisites**
+- Node.js 18+
+- PostgreSQL 14+
+- Yarn
+- Docker (optional, for code execution)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend Layer                            │
-│  React 19 + Vite + TailwindCSS + Monaco Editor                  │
-│  • Landing Page      • Dashboards       • Code Editor           │
-│  • Lessons           • Assignments      • Submissions           │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓ REST API
-┌─────────────────────────────────────────────────────────────────┐
-│                        Backend Layer                             │
-│  Node.js + Express + Prisma ORM                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Security & Authentication                               │   │
-│  │  • JWT Authentication    • RBAC                        │   │
-│  │  • Rate Limiting        • CORS                         │   │
-│  │  • Helmet Security      • Error Handling               │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ API Endpoints                                           │   │
-│  │  • /api/auth           • /api/admin                    │   │
-│  │  • /api/instructor     • /api/student                  │   │
-│  │  • /api/code           • /api/lessons                  │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                    ↓                           ↓
-      ┌────────────────────────┐    ┌────────────────────────┐
-      │   PostgreSQL Database   │    │   Judge0 Engine        │
-      │   • Users & Roles       │    │   • Code Execution     │
-      │   • Courses & Sections  │    │   • 18+ Languages      │
-      │   • Assignments         │    │   • Sandboxed          │
-      │   • Submissions         │    │   • Docker-based       │
-      │   • Lessons & Progress  │    └────────────────────────┘
-      └────────────────────────┘
-```
+**Detailed Setup**
 
----
-
-## 🛠️ Technology Stack
-
-### Frontend
-- **Framework**: React 19.2.0 with React Router DOM
-- **Build Tool**: Vite 7.2.2
-- **Styling**: TailwindCSS 4.1.17
-- **Code Editor**: Monaco Editor (VS Code engine)
-- **PDF Viewer**: React-PDF
-- **Icons**: Lucide React
-- **HTTP Client**: Axios
-- **Notifications**: React Toastify
-
-### Backend
-- **Runtime**: Node.js 18+
-- **Framework**: Express 4.19.2
-- **Database**: PostgreSQL 14+
-- **ORM**: Prisma 5.22.0
-- **Authentication**: JWT (Manual implementation)
-- **Password Hashing**: bcrypt
-- **File Upload**: Multer
-- **CSV Processing**: csv-parse & csv-stringify
-- **Security**: Helmet, CORS, Rate Limiting
-- **Logging**: Winston & Morgan
-
-### Code Execution
-- **Engine**: Judge0 CE (Community Edition)
-- **Containerization**: Docker
-- **Languages Supported**: 18+ including Python, JavaScript, Java, C++, C, Go, Rust
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** v18 or higher
-- **PostgreSQL** v14 or higher
-- **Yarn** package manager
-- **Docker** (for Judge0 code execution)
-
-### Installation
-
-#### 1. Clone the Repository
+1. Clone repository:
 ```bash
 git clone <repository-url>
 cd codeLan
 ```
 
-#### 2. Setup Backend
+2. Backend setup:
 ```bash
 cd backend
 
@@ -170,9 +119,9 @@ yarn create-admin
 yarn dev
 ```
 
-Backend will run on: **http://localhost:3000**
+Backend runs on http://localhost:3000
 
-#### 3. Setup Frontend
+3. Frontend setup:
 ```bash
 cd ../frontend
 
@@ -186,98 +135,31 @@ cp .env.example .env
 yarn dev
 ```
 
-Frontend will run on: **http://localhost:5173**
+Frontend runs on http://localhost:5173
 
-#### 4. Setup Judge0 (Optional)
+4. Judge0 setup (optional):
 ```bash
 cd ../backend/docker
 docker-compose up -d
 ```
 
-Judge0 will run on: **http://localhost:2358**
+Judge0 runs on http://localhost:2358
 
-### 🎉 You're Ready!
+Visit http://localhost:5173 to access the platform.
 
-Visit **http://localhost:5173** to access the platform.
+Default admin: `admin@school.edu` / `admin123`
 
-**Default Admin Credentials:**
-- Email: `admin@school.edu`
-- Password: `admin123`
+## User Roles
 
----
+**ADMIN** - Full system control, user management, batch/section management, CSV import/export
 
-## 📚 Documentation
+**INSTRUCTOR** - Create lessons/assignments, grade submissions, manage assigned sections
 
-### Main Documentation
-- **[Backend Documentation](./BACKEND.md)** - Complete backend API reference
-- **[Frontend Documentation](./FRONTEND.md)** - Frontend architecture and components
-- **[API Documentation](./backend/docs/SYSTEM_OVERVIEW.md)** - Detailed API endpoints
+**STUDENT** - Access lessons, complete assignments, submit code, track progress
 
-### Additional Resources
-- **[Setup Guide](./backend/docs/SETUP_COMPLETE.md)** - Complete setup instructions
-- **[Security Guide](./backend/docs/RBAC_GUIDE.md)** - RBAC and security features
-- **[Deployment Guide](./backend/docs/IMPLEMENTATION_SUMMARY.md)** - Production deployment
-- **[Logging Guide](./backend/docs/LOGGING_GUIDE.md)** - System monitoring
-- **[Postman Collection](./backend/docs/POSTMAN_QUICK_START.md)** - API testing
+## Deployment
 
----
-
-## 👥 User Roles
-
-### 🔴 ADMIN
-**Full System Control**
-- Create and manage all user accounts
-- Import/export users via CSV
-- Create and manage batches and sections
-- Oversee entire platform operation
-- Access to all administrative tools
-
-### 🟠 INSTRUCTOR
-**Course Management**
-- Create and manage lessons
-- Design and assign coding assignments
-- Review and grade student submissions
-- Manage assigned class sections
-- Track student progress and performance
-
-### 🟢 STUDENT
-**Learning & Practice**
-- Access assigned lessons and materials
-- Complete coding assignments
-- Submit code for evaluation
-- Track personal progress and grades
-- Use integrated code editor workspace
-
----
-
-## 🔒 Security Features
-
-### Authentication & Authorization
-- ✅ **JWT-based Authentication** - Secure token-based auth
-- ✅ **httpOnly Cookies** - XSS protection
-- ✅ **Role-Based Access Control (RBAC)** - Granular permissions
-- ✅ **Password Hashing** - bcrypt with 10 salt rounds
-- ✅ **Session Management** - Token expiration and refresh
-
-### Security Hardening
-- ✅ **Helmet** - Security headers configuration
-- ✅ **CORS** - Cross-origin resource sharing control
-- ✅ **Rate Limiting** - 5-tier protection system
-- ✅ **Input Validation** - Request sanitization
-- ✅ **SQL Injection Prevention** - Parameterized queries via Prisma
-- ✅ **XSS Protection** - Content security policies
-
-### Data Protection
-- ✅ **Manual User Management** - No public registration
-- ✅ **Automated Backups** - Daily database backups
-- ✅ **Secure File Uploads** - Type and size validation
-- ✅ **Error Handling** - No sensitive data exposure
-
----
-
-## 🌐 Deployment
-
-### Development
+**Development**
 ```bash
 # Backend
 cd backend && yarn dev
@@ -286,9 +168,9 @@ cd backend && yarn dev
 cd frontend && yarn dev
 ```
 
-### Production
+**Production**
 
-#### Backend
+Backend:
 ```bash
 cd backend
 yarn prisma:generate
@@ -296,163 +178,41 @@ yarn prisma:migrate
 NODE_ENV=production yarn start
 ```
 
-#### Frontend
+Frontend:
 ```bash
 cd frontend
 yarn build
 # Serve the dist/ folder with nginx or similar
 ```
 
-### Docker Deployment (Recommended)
+Docker (recommended):
 ```bash
-# Full stack with docker-compose
 docker-compose up -d
 ```
 
-### Environment Variables
+**Environment Variables**
 
-**Backend (.env)**
+Backend `.env`:
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/codelan"
 NODE_ENV=production
 PORT=3000
-JWT_SECRET=your_super_secret_key_here
-JWT_EXPIRES_IN=7d
+JWT_SECRET=your_secret_key
+JWT_EXPIRES_IN=24h
 JUDGE0_API_URL=http://localhost:2358
 ```
 
-**Frontend (.env)**
+Frontend `.env`:
 ```env
 VITE_API_URL=http://localhost:3000
 ```
 
----
+## System Requirements
 
-## 📊 System Requirements
+**Minimum**: 2 CPU cores, 4GB RAM, 20GB storage
 
-### Minimum Requirements
-- **CPU**: 2 cores
-- **RAM**: 4GB
-- **Storage**: 20GB
-- **Network**: Local LAN
+**Recommended**: 4+ CPU cores, 8GB+ RAM, 50GB SSD
 
-### Recommended Requirements
-- **CPU**: 4+ cores
-- **RAM**: 8GB+
-- **Storage**: 50GB SSD
-- **Network**: Gigabit LAN
+## License
 
----
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-yarn test:rbac          # Test role-based access control
-yarn test:integration   # Integration tests
-yarn test:load          # Load testing
-```
-
-### Frontend Tests
-```bash
-cd frontend
-yarn test               # Run unit tests
-yarn test:e2e           # End-to-end tests
-```
-
----
-
-## 📈 Performance
-
-- ✅ **Load Tested**: 99%+ success rate under concurrent load
-- ✅ **Code Execution**: < 5s average execution time
-- ✅ **API Response**: < 200ms average response time
-- ✅ **Database Queries**: Optimized with Prisma
-- ✅ **File Uploads**: Chunked uploads for large files
-
----
-
-## 🤝 Contributing
-
-This is an educational platform. For contributions or suggestions:
-1. Review existing documentation
-2. Test your changes thoroughly
-3. Follow the established code style
-4. Document new features
-
----
-
-## 📄 License
-
-**Educational Use License**
-
-This software is designed for educational purposes within academic institutions. 
-
----
-
-## 🆘 Support
-
-### Getting Help
-- **Documentation**: Check the docs/ folder for detailed guides
-- **Issues**: Report bugs via your institution's IT support
-- **Email**: Contact your system administrator
-
-### Common Issues
-- **Database Connection**: Verify PostgreSQL is running and DATABASE_URL is correct
-- **Port Conflicts**: Change PORT in .env if 3000 or 5173 are in use
-- **JWT Errors**: Regenerate JWT_SECRET in .env
-- **Code Execution**: Ensure Judge0 Docker containers are running
-
----
-
-## 🎯 Roadmap
-
-### Completed ✅
-- User authentication and authorization
-- Role-based access control
-- Code editor with multi-language support
-- Assignment submission system
-- Lesson management
-- Admin, instructor, and student dashboards
-- Responsive design
-- Security hardening
-
-### Future Enhancements 🔮
-- Real-time collaboration
-- Live code execution preview
-- Video lesson support
-- Automated testing for assignments
-- Plagiarism detection
-- Mobile native apps
-- Advanced analytics dashboard
-
----
-
-## 🙏 Acknowledgments
-
-Built with modern web technologies and best practices for educational excellence.
-
-- **React Team** - For the amazing React framework
-- **Vercel** - For Vite and Next.js
-- **Prisma** - For the excellent ORM
-- **Judge0** - For code execution engine
-- **Tailwind Labs** - For TailwindCSS
-
----
-
-## 📞 Contact
-
-**SMU Code Platform Team**
-
-For institutional deployment inquiries, contact your IT department.
-
----
-
-<div align="center">
-
-**Made with ❤️ for Education**
-
-*Empowering the next generation of developers*
-
-</div>
+Educational use only.

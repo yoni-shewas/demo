@@ -486,7 +486,7 @@ const Users = () => {
                           >
                             <option value="">No Section</option>
                             {sections
-                              .filter((s) => s.batchId === editingUser.studentProfile?.batchId)
+                              .filter((s) => s.batchId == editingUser.studentProfile?.batchId)
                               .map((s) => (
                                 <option key={s.id} value={s.id}>
                                   {s.name}
@@ -733,14 +733,14 @@ const Users = () => {
                       >
                         <option value="">Select Section</option>
                         {sections
-                          .filter((section) => section.batchId === formData.batchId)
+                          .filter((section) => section.batchId == formData.batchId)
                           .map((section) => (
                             <option key={section.id} value={section.id}>
                               {section.name}
                             </option>
                           ))}
                       </select>
-                      {sections.filter((s) => s.batchId === formData.batchId).length === 0 && (
+                      {sections.filter((s) => s.batchId == formData.batchId).length === 0 && (
                         <p className="text-xs text-gray-500 mt-1">
                           No sections available for this batch
                         </p>
